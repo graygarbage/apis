@@ -1,7 +1,7 @@
 """Dry-run validator using AWS IAM Policy Simulator."""
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 
 class DryRunValidator:
@@ -11,7 +11,7 @@ class DryRunValidator:
     simulates API calls without making actual AWS API calls.
     """
 
-    def __init__(self, profile: str | None = None, region: str = "us-east-1") -> None:
+    def __init__(self, profile: Optional[str] = None, region: str = "us-east-1") -> None:
         self._profile = profile
         self._region = region
         self._session = None

@@ -1,6 +1,6 @@
 """Feature detector - maps customer configuration selections to IAM permissions."""
 
-from typing import Any
+from typing import Any, Optional
 
 from cohesity_iam_scoper.mappers.permission_map import PermissionMapper
 
@@ -25,7 +25,7 @@ FEATURE_DISPLAY_NAMES = {
 class FeatureDetector:
     """Resolves a customer configuration into a concrete set of IAM permissions."""
 
-    def __init__(self, mapper: PermissionMapper | None = None) -> None:
+    def __init__(self, mapper: Optional[PermissionMapper] = None) -> None:
         self._mapper = mapper or PermissionMapper()
 
     def resolve_permissions(

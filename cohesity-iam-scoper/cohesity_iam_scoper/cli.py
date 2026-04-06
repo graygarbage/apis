@@ -50,9 +50,8 @@ def init(config):
     formatter.print_banner()
 
     if os.path.exists(config):
-        if not click.confirm(
-            f"[yellow]Configuration file '{config}' already exists. Overwrite?[/yellow]"
-        ):
+        console.print(f"[yellow]Configuration file '{config}' already exists.[/yellow]")
+        if not click.confirm("Overwrite?"):
             console.print("[yellow]Init cancelled.[/yellow]")
             return
 
