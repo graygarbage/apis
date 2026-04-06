@@ -1,0 +1,678 @@
+{
+  "ec2_vm_backup": {
+    "feature_name": "EC2 VM Backup",
+    "cohesity_apis": [
+      "POST /v2/data-protect/protection-groups",
+      "PUT /v2/data-protect/protection-groups/{id}",
+      "GET /v2/data-protect/protection-groups/{id}/runs",
+      "POST /v2/data-protect/protection-groups/{id}/runs/actions"
+    ],
+    "description": "Back up EC2 instances and EBS volumes using native snapshots.",
+    "environment_types": ["kAWS", "kAWSNative", "kAWSSnapshotManager"],
+    "iam_permissions": {
+      "required": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeVolumes",
+        "ec2:DescribeVolumeStatus",
+        "ec2:DescribeSnapshots",
+        "ec2:DescribeSnapshotAttribute",
+        "ec2:DescribeTags",
+        "ec2:DescribeImages",
+        "ec2:DescribeRegions",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:CreateSnapshot",
+        "ec2:CopySnapshot",
+        "ec2:DeleteSnapshot",
+        "ec2:CreateTags",
+        "ec2:DeleteTags"
+      ],
+      "resource_scoping": {
+        "ec2:CreateSnapshot": {
+          "resource": "arn:aws:ec2:{region}:{account}:volume/*",
+          "condition_keys": ["ec2:ResourceTag/CohesityManaged"]
+        },
+        "ec2:CopySnapshot": {
+          "resource": "arn:aws:ec2:{region}::snapshot/*",
+          "condition_keys": []
+        },
+        "ec2:DeleteSnapshot": {
+          "resource": "arn:aws:ec2:{region}::snapshot/*",
+          "condition_keys": ["ec2:ResourceTag/CohesityManaged"]
+        },
+        "ec2:CreateTags": {
+          "resource": [
+            "arn:aws:ec2:{region}::snapshot/*",
+            "arn:aws:ec2:{region}:{account}:volume/*"
+          ],
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "MEDIUM"
+  },
+
+  "ec2_vm_restore": {
+    "feature_name": "EC2 VM Restore / CloudSpin",
+    "cohesity_apis": [
+      "POST /v2/data-protect/recoveries",
+      "GET /v2/data-protect/recoveries/{id}",
+      "POST /v2/data-protect/recoveries/{id}/cancel"
+    ],
+    "description": "Restore EC2 instances and EBS volumes from Cohesity snapshots or cloud-spin to AWS.",
+    "environment_types": ["kAWS", "kAWSNative"],
+    "iam_permissions": {
+      "required": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeImages",
+        "ec2:DescribeSnapshots",
+        "ec2:DescribeVolumes",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeKeyPairs",
+        "ec2:DescribeInstanceTypes",
+        "ec2:RunInstances",
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+        "ec2:TerminateInstances",
+        "ec2:CreateVolume",
+        "ec2:AttachVolume",
+        "ec2:DetachVolume",
+        "ec2:DeleteVolume",
+        "ec2:RegisterImage",
+        "ec2:DeregisterImage",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyVolumeAttribute"
+      ],
+      "resource_scoping": {
+        "ec2:RunInstances": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:subnet/{subnet_ids}",
+            "arn:aws:ec2:{region}:{account}:security-group/*",
+            "arn:aws:ec2:{region}::image/*",
+            "arn:aws:ec2:{region}:{account}:key-pair/*"
+          ],
+          "condition_keys": ["aws:RequestTag/CohesityManaged"]
+        },
+        "ec2:TerminateInstances": {
+          "resource": "arn:aws:ec2:{region}:{account}:instance/*",
+          "condition_keys": ["ec2:ResourceTag/CohesityManaged"]
+        },
+        "ec2:CreateVolume": {
+          "resource": "arn:aws:ec2:{region}:{account}:volume/*",
+          "condition_keys": ["aws:RequestTag/CohesityManaged"]
+        }
+      }
+    },
+    "risk_level": "HIGH"
+  },
+
+  "rds_backup": {
+    "feature_name": "RDS Backup",
+    "cohesity_apis": [
+      "POST /v2/data-protect/protection-groups",
+      "PUT /v2/data-protect/protection-groups/{id}",
+      "GET /v2/data-protect/protection-groups/{id}/runs"
+    ],
+    "description": "Back up RDS DB instances and Aurora clusters using native RDS snapshots.",
+    "environment_types": [
+      "kRDSSnapshotManager",
+      "kRDSPostgresSnapshotManager",
+      "kRDSMySQLSnapshotManager",
+      "kAuroraSnapshotManager",
+      "kAWSMySQL",
+      "kAWSRdsOracle",
+      "kAWSRDSPostgresDB",
+      "kAWSRDSMSSQL"
+    ],
+    "iam_permissions": {
+      "required": [
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBClusters",
+        "rds:DescribeDBSnapshots",
+        "rds:DescribeDBClusterSnapshots",
+        "rds:DescribeDBSubnetGroups",
+        "rds:DescribeDBParameterGroups",
+        "rds:DescribeDBClusterParameterGroups",
+        "rds:DescribeOptionGroups",
+        "rds:ListTagsForResource",
+        "rds:CreateDBSnapshot",
+        "rds:CopyDBSnapshot",
+        "rds:DeleteDBSnapshot",
+        "rds:CreateDBClusterSnapshot",
+        "rds:CopyDBClusterSnapshot",
+        "rds:DeleteDBClusterSnapshot",
+        "rds:AddTagsToResource",
+        "rds:RemoveTagsFromResource"
+      ],
+      "resource_scoping": {
+        "rds:CreateDBSnapshot": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:db:*",
+            "arn:aws:rds:{region}:{account}:snapshot:cohesity-*"
+          ],
+          "condition_keys": []
+        },
+        "rds:DeleteDBSnapshot": {
+          "resource": "arn:aws:rds:{region}:{account}:snapshot:cohesity-*",
+          "condition_keys": []
+        },
+        "rds:CreateDBClusterSnapshot": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:cluster:*",
+            "arn:aws:rds:{region}:{account}:cluster-snapshot:cohesity-*"
+          ],
+          "condition_keys": []
+        },
+        "rds:DeleteDBClusterSnapshot": {
+          "resource": "arn:aws:rds:{region}:{account}:cluster-snapshot:cohesity-*",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "MEDIUM"
+  },
+
+  "rds_restore": {
+    "feature_name": "RDS Restore",
+    "cohesity_apis": [
+      "POST /v2/data-protect/recoveries",
+      "GET /v2/data-protect/recoveries/{id}"
+    ],
+    "description": "Restore RDS DB instances and Aurora clusters from snapshots, including point-in-time recovery.",
+    "environment_types": [
+      "kRDSSnapshotManager",
+      "kAuroraSnapshotManager",
+      "kAWSRDSPostgresDB",
+      "kAWSRDSMSSQL"
+    ],
+    "iam_permissions": {
+      "required": [
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBClusters",
+        "rds:DescribeDBSnapshots",
+        "rds:DescribeDBClusterSnapshots",
+        "rds:DescribeDBSubnetGroups",
+        "rds:DescribeDBParameterGroups",
+        "rds:DescribeDBClusterParameterGroups",
+        "rds:DescribeOptionGroups",
+        "rds:DescribeEngineDefaultParameters",
+        "rds:ListTagsForResource",
+        "rds:RestoreDBInstanceFromDBSnapshot",
+        "rds:RestoreDBInstanceToPointInTime",
+        "rds:RestoreDBClusterFromSnapshot",
+        "rds:RestoreDBClusterToPointInTime",
+        "rds:CreateDBInstance",
+        "rds:DeleteDBInstance",
+        "rds:CreateDBCluster",
+        "rds:DeleteDBCluster",
+        "rds:ModifyDBInstance",
+        "rds:ModifyDBCluster",
+        "rds:AddTagsToResource"
+      ],
+      "resource_scoping": {
+        "rds:RestoreDBInstanceFromDBSnapshot": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:db:*",
+            "arn:aws:rds:{region}:{account}:snapshot:cohesity-*"
+          ],
+          "condition_keys": []
+        },
+        "rds:DeleteDBInstance": {
+          "resource": "arn:aws:rds:{region}:{account}:db:cohesity-*",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "HIGH"
+  },
+
+  "dynamodb_backup": {
+    "feature_name": "DynamoDB Backup",
+    "cohesity_apis": [
+      "POST /v2/data-protect/protection-groups",
+      "GET /v2/data-protect/protection-groups/{id}/runs"
+    ],
+    "description": "Back up DynamoDB tables using on-demand backups or point-in-time recovery exports.",
+    "environment_types": ["kAwsDynamoDB"],
+    "iam_permissions": {
+      "required": [
+        "dynamodb:DescribeTable",
+        "dynamodb:ListTables",
+        "dynamodb:ListTagsOfResource",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:DescribeExport",
+        "dynamodb:ListExports",
+        "dynamodb:CreateBackup",
+        "dynamodb:DeleteBackup",
+        "dynamodb:DescribeBackup",
+        "dynamodb:ListBackups",
+        "dynamodb:ExportTableToPointInTime"
+      ],
+      "resource_scoping": {
+        "dynamodb:CreateBackup": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:DeleteBackup": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*/backup/*",
+          "condition_keys": []
+        },
+        "dynamodb:ExportTableToPointInTime": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "LOW"
+  },
+
+  "s3_archive": {
+    "feature_name": "S3 Archive",
+    "cohesity_apis": [
+      "POST /v2/data-protect/external-targets",
+      "PUT /v2/data-protect/external-targets/{id}",
+      "GET /v2/data-protect/external-targets",
+      "DELETE /v2/data-protect/external-targets/{id}"
+    ],
+    "description": "Archive Cohesity backups to Amazon S3 for long-term retention.",
+    "environment_types": ["kAwsS3"],
+    "iam_permissions": {
+      "required": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListBucketVersions",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketObjectLockConfiguration",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketAcl",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectTagging",
+        "s3:GetObjectAcl",
+        "s3:PutObject",
+        "s3:PutObjectTagging",
+        "s3:PutObjectAcl",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:AbortMultipartUpload",
+        "s3:CreateBucket",
+        "s3:PutLifecycleConfiguration",
+        "s3:PutBucketVersioning",
+        "s3:PutBucketObjectLockConfiguration",
+        "s3:PutEncryptionConfiguration"
+      ],
+      "resource_scoping": {
+        "s3:GetObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:PutObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:DeleteObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:ListBucket": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:CreateBucket": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "MEDIUM"
+  },
+
+  "glacier_archive": {
+    "feature_name": "Glacier Archive",
+    "cohesity_apis": [
+      "POST /v2/data-protect/external-targets",
+      "GET /v2/data-protect/external-targets"
+    ],
+    "description": "Archive Cohesity backups to Amazon S3 Glacier or Glacier Deep Archive for lowest-cost retention.",
+    "environment_types": ["kAwsS3"],
+    "iam_permissions": {
+      "required": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListBucketMultipartUploads",
+        "s3:GetLifecycleConfiguration",
+        "s3:PutLifecycleConfiguration",
+        "glacier:InitiateJob",
+        "glacier:DescribeJob",
+        "glacier:GetJobOutput",
+        "glacier:ListJobs",
+        "glacier:UploadArchive",
+        "glacier:InitiateMultipartUpload",
+        "glacier:UploadMultipartPart",
+        "glacier:CompleteMultipartUpload",
+        "glacier:AbortMultipartUpload",
+        "glacier:ListMultipartUploads",
+        "glacier:DeleteArchive",
+        "glacier:DescribeVault",
+        "glacier:ListVaults",
+        "glacier:CreateVault",
+        "glacier:ListTagsForVault",
+        "glacier:AddTagsToVault"
+      ],
+      "resource_scoping": {
+        "glacier:UploadArchive": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/cohesity-*",
+          "condition_keys": []
+        },
+        "glacier:DeleteArchive": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/cohesity-*",
+          "condition_keys": []
+        },
+        "glacier:CreateVault": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/cohesity-*",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "LOW"
+  },
+
+  "source_registration_aws": {
+    "feature_name": "AWS Source Registration",
+    "cohesity_apis": [
+      "POST /v2/data-protect/sources/registrations",
+      "PUT /v2/data-protect/sources/registrations/{id}",
+      "GET /v2/data-protect/sources/registrations",
+      "DELETE /v2/data-protect/sources/registrations/{id}",
+      "POST /v2/data-protect/sources/{id}/refresh",
+      "GET /v2/data-protect/sources/{sourceId}/objects"
+    ],
+    "description": "Register an AWS account as a Cohesity protection source to discover EC2, RDS, S3, and DynamoDB resources.",
+    "environment_types": ["kAWS", "kAWSNative"],
+    "iam_permissions": {
+      "required": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeVolumes",
+        "ec2:DescribeVolumeStatus",
+        "ec2:DescribeSnapshots",
+        "ec2:DescribeImages",
+        "ec2:DescribeRegions",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeKeyPairs",
+        "ec2:DescribeTags",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeRouteTables",
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBClusters",
+        "rds:DescribeDBSubnetGroups",
+        "rds:ListTagsForResource",
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:GetBucketTagging",
+        "dynamodb:ListTables",
+        "dynamodb:DescribeTable",
+        "dynamodb:ListTagsOfResource",
+        "iam:GetUser",
+        "iam:GetAccountSummary",
+        "iam:ListAccountAliases"
+      ],
+      "resource_scoping": {}
+    },
+    "risk_level": "LOW"
+  },
+
+  "iam_role_management": {
+    "feature_name": "IAM Role Management",
+    "cohesity_apis": [
+      "POST /v2/data-protect/sources/registrations",
+      "POST /v2/data-protect/external-targets"
+    ],
+    "description": "Create and manage IAM roles required for cross-account access, archive targets, and CloudSpin.",
+    "environment_types": ["kAWS"],
+    "iam_permissions": {
+      "required": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRoles",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfiles",
+        "iam:GetInstanceProfile",
+        "iam:PassRole",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "resource_scoping": {
+        "iam:CreateRole": {
+          "resource": [
+            "arn:aws:iam::{account}:role/Cohesity*",
+            "arn:aws:iam::{account}:role/cohesity-*"
+          ],
+          "condition_keys": ["iam:PermissionsBoundary"]
+        },
+        "iam:DeleteRole": {
+          "resource": [
+            "arn:aws:iam::{account}:role/Cohesity*",
+            "arn:aws:iam::{account}:role/cohesity-*"
+          ],
+          "condition_keys": []
+        },
+        "iam:PutRolePolicy": {
+          "resource": [
+            "arn:aws:iam::{account}:role/Cohesity*",
+            "arn:aws:iam::{account}:role/cohesity-*"
+          ],
+          "condition_keys": []
+        },
+        "iam:AttachRolePolicy": {
+          "resource": [
+            "arn:aws:iam::{account}:role/Cohesity*",
+            "arn:aws:iam::{account}:role/cohesity-*"
+          ],
+          "condition_keys": []
+        },
+        "iam:PassRole": {
+          "resource": [
+            "arn:aws:iam::{account}:role/Cohesity*",
+            "arn:aws:iam::{account}:role/cohesity-*"
+          ],
+          "condition_keys": ["iam:PassedToService"]
+        }
+      }
+    },
+    "risk_level": "HIGH"
+  },
+
+  "ssm_operations": {
+    "feature_name": "SSM Operations (App-Consistent Backups)",
+    "cohesity_apis": [
+      "POST /v2/data-protect/protection-groups",
+      "PUT /v2/data-protect/protection-groups/{id}"
+    ],
+    "description": "Use AWS Systems Manager to quiesce applications for app-consistent EC2 snapshots.",
+    "environment_types": ["kAWS", "kAWSNative"],
+    "iam_permissions": {
+      "required": [
+        "ssm:DescribeInstanceInformation",
+        "ssm:ListCommandInvocations",
+        "ssm:GetCommandInvocation",
+        "ssm:DescribeDocument",
+        "ssm:ListDocuments",
+        "ssm:SendCommand"
+      ],
+      "resource_scoping": {
+        "ssm:SendCommand": {
+          "resource": [
+            "arn:aws:ssm:{region}::document/AWS-RunShellScript",
+            "arn:aws:ssm:{region}::document/AWS-RunPowerShellScript",
+            "arn:aws:ssm:{region}:{account}:document/CohesityBackup*",
+            "arn:aws:ec2:{region}:{account}:instance/*"
+          ],
+          "condition_keys": ["ssm:resourceTag/CohesityManaged"]
+        }
+      }
+    },
+    "risk_level": "MEDIUM"
+  },
+
+  "cloudformation_management": {
+    "feature_name": "CloudFormation Stack Management",
+    "cohesity_apis": [
+      "POST /v2/data-protect/sources/registrations",
+      "POST /v2/data-protect/external-targets"
+    ],
+    "description": "Manage CloudFormation stacks used to deploy Cohesity roles and resources in AWS.",
+    "environment_types": ["kAWS"],
+    "iam_permissions": {
+      "required": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:ListStacks",
+        "cloudformation:ListStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:ValidateTemplate",
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet"
+      ],
+      "resource_scoping": {
+        "cloudformation:CreateStack": {
+          "resource": "arn:aws:cloudformation:{region}:{account}:stack/Cohesity*/*",
+          "condition_keys": []
+        },
+        "cloudformation:UpdateStack": {
+          "resource": "arn:aws:cloudformation:{region}:{account}:stack/Cohesity*/*",
+          "condition_keys": []
+        },
+        "cloudformation:DeleteStack": {
+          "resource": "arn:aws:cloudformation:{region}:{account}:stack/Cohesity*/*",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "MEDIUM"
+  },
+
+  "kms_encryption": {
+    "feature_name": "KMS Encryption",
+    "cohesity_apis": [
+      "POST /v2/data-protect/external-targets",
+      "POST /v2/data-protect/protection-groups"
+    ],
+    "description": "Use AWS KMS customer-managed keys (CMKs) to encrypt Cohesity backups and archives.",
+    "environment_types": ["kAWS", "kAwsS3"],
+    "iam_permissions": {
+      "required": [
+        "kms:DescribeKey",
+        "kms:ListKeys",
+        "kms:ListAliases",
+        "kms:GetKeyPolicy",
+        "kms:GetKeyRotationStatus",
+        "kms:GenerateDataKey",
+        "kms:GenerateDataKeyWithoutPlaintext",
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:ReEncryptFrom",
+        "kms:ReEncryptTo",
+        "kms:CreateGrant",
+        "kms:ListGrants",
+        "kms:RevokeGrant"
+      ],
+      "resource_scoping": {
+        "kms:GenerateDataKey": {
+          "resource": "arn:aws:kms:{region}:{account}:key/*",
+          "condition_keys": ["kms:ViaService", "kms:CallerAccount"]
+        },
+        "kms:Decrypt": {
+          "resource": "arn:aws:kms:{region}:{account}:key/*",
+          "condition_keys": ["kms:ViaService", "kms:CallerAccount"]
+        },
+        "kms:CreateGrant": {
+          "resource": "arn:aws:kms:{region}:{account}:key/*",
+          "condition_keys": ["kms:GrantIsForAWSResource"]
+        }
+      }
+    },
+    "risk_level": "LOW"
+  },
+
+  "rds_staging_s3": {
+    "feature_name": "RDS Backup S3 Staging",
+    "cohesity_apis": [
+      "POST /v2/data-protect/protection-groups",
+      "GET /v2/data-protect/protection-groups/{id}/runs"
+    ],
+    "description": "Stage RDS backup data through S3 during cross-region or cross-account restore operations.",
+    "environment_types": ["kRDSSnapshotManager", "kAuroraSnapshotManager"],
+    "iam_permissions": {
+      "required": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:CreateBucket",
+        "s3:GetBucketVersioning",
+        "s3:PutBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutEncryptionConfiguration"
+      ],
+      "resource_scoping": {
+        "s3:GetObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:PutObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:DeleteObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:ListBucket": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        }
+      }
+    },
+    "risk_level": "MEDIUM"
+  }
+}
