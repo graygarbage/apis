@@ -243,8 +243,10 @@ def _build_statements(
             resource = _parse_resource_key(resource_key)
             rule = resource_scoping.get(acts[0], {})
             conditions = rule.get("conditions")
+            # Sanitize service name for Sid (must be alphanumeric only)
+            sid_service = service.upper().replace("-", "").replace("_", "")
             stmt: dict[str, Any] = {
-                "Sid": f"{service.upper()}Scoped{len(statements)}",
+                "Sid": f"{sid_service}Scoped{len(statements)}",
                 "Effect": "Allow",
                 "Action": sorted(acts),
                 "Resource": resource,
@@ -254,8 +256,9 @@ def _build_statements(
             statements.append(stmt)
 
         if unscoped:
+            sid_service = service.upper().replace("-", "").replace("_", "")
             statements.append({
-                "Sid": f"{service.upper()}ReadOnly{len(statements)}",
+                "Sid": f"{sid_service}ReadOnly{len(statements)}",
                 "Effect": "Allow",
                 "Action": sorted(unscoped),
                 "Resource": "*",

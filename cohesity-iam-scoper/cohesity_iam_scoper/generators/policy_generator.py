@@ -5,15 +5,24 @@ from typing import Any
 
 _SERVICE_SIDS = {
     "ec2": "EC2Operations",
+    "ebs": "EBSOperations",
     "rds": "RDSOperations",
+    "rds-db": "RDSDBOperations",
     "s3": "S3Operations",
     "glacier": "GlacierOperations",
     "dynamodb": "DynamoDBOperations",
     "iam": "IAMRoleOperations",
     "ssm": "SSMOperations",
+    "ssmmessages": "SSMMessagesOperations",
     "cloudformation": "CloudFormationOperations",
     "kms": "KMSOperations",
     "sts": "STSOperations",
+    "redshift": "RedshiftOperations",
+    "redshift-data": "RedshiftDataOperations",
+    "sqs": "SQSOperations",
+    "events": "EventBridgeOperations",
+    "glue": "GlueOperations",
+    "logs": "CloudWatchLogsOperations",
 }
 
 
@@ -60,8 +69,10 @@ class PolicyGenerator:
             for (resource_key, conditions_key), acts in scoped_actions.items():
                 resource = _denormalise_resource(resource_key)
                 conditions = _denormalise_conditions(conditions_key)
+                # Sanitize service name for Sid (must be alphanumeric only)
+                sid_service = _SERVICE_SIDS.get(service, service.capitalize()).replace("-", "").replace("_", "")
                 stmt: dict[str, Any] = {
-                    "Sid": f"{_SERVICE_SIDS.get(service, service.capitalize())}Scoped",
+                    "Sid": f"{sid_service}Scoped",
                     "Effect": "Allow",
                     "Action": acts,
                     "Resource": resource,
@@ -71,8 +82,9 @@ class PolicyGenerator:
                 statements.append(stmt)
 
             if unscoped_actions:
+                sid_service = _SERVICE_SIDS.get(service, service.capitalize()).replace("-", "").replace("_", "")
                 stmt = {
-                    "Sid": _SERVICE_SIDS.get(service, service.capitalize()),
+                    "Sid": sid_service,
                     "Effect": "Allow",
                     "Action": sorted(unscoped_actions),
                     "Resource": "*",

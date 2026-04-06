@@ -146,6 +146,11 @@ def _apply_customer_context(
     role_prefix = iam_config.get("role_name_prefix", "Cohesity")
     boundary_arn = iam_config.get("permissions_boundary_arn", "")
 
+    # Get KMS key ARN from s3 config
+    kms_key_arn = s3_config.get("kms_key_arn", "*")
+    if not kms_key_arn:
+        kms_key_arn = "*"
+
     def _fill(resource_val: Any) -> Any:
         """Replace template placeholders with actual customer values."""
         if isinstance(resource_val, str):
@@ -156,6 +161,10 @@ def _apply_customer_context(
                 .replace("{bucket_pattern}", bucket_pattern)
                 .replace("{subnet_ids}", "*" if not subnet_ids else
                          "/".join(subnet_ids))
+                .replace("{role_prefix}", role_prefix)
+                .replace("{snapshot_prefix}", rds_prefix)
+                .replace("{tag_key}", tag_key)
+                .replace("{kms_key_arn}", kms_key_arn)
             )
             return result
         if isinstance(resource_val, list):
