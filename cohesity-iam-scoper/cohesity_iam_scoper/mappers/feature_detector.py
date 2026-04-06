@@ -6,19 +6,24 @@ from cohesity_iam_scoper.mappers.permission_map import PermissionMapper
 
 
 FEATURE_DISPLAY_NAMES = {
+    "source_registration_aws": "AWS Source Registration",
     "ec2_vm_backup": "EC2 VM Backup",
+    "ebs_direct_api": "EBS Direct API (Block-Level Backup)",
     "ec2_vm_restore": "EC2 VM Restore / CloudSpin",
     "rds_backup": "RDS Backup",
     "rds_restore": "RDS Restore",
+    "rds_db_connect": "RDS DB Connect (IAM Auth)",
+    "rds_staging_s3": "RDS Backup S3 Staging",
+    "redshift_backup": "Redshift Backup",
     "dynamodb_backup": "DynamoDB Backup",
-    "s3_archive": "S3 Archive",
+    "s3_protection": "S3 Protection (S3 as Source)",
+    "s3_archive": "S3 Archive (External Target)",
     "glacier_archive": "Glacier Archive",
-    "source_registration_aws": "AWS Source Registration",
     "iam_role_management": "IAM Role Management",
+    "instance_role": "Cohesity Instance Role",
     "ssm_operations": "SSM Operations (App-Consistent Backups)",
     "cloudformation_management": "CloudFormation Stack Management",
     "kms_encryption": "KMS Encryption",
-    "rds_staging_s3": "RDS Backup S3 Staging",
 }
 
 
