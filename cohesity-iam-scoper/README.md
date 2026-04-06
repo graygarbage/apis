@@ -52,6 +52,62 @@ cohesity-iam-scoper generate --config cohesity-config.json --output scoped-cft.j
 cohesity-iam-scoper compare --current cft.json --scoped scoped-cft.json
 ```
 
+## Configuration File (`cohesity-config.json`)
+
+The configuration file is the **customer configuration file** that drives the entire CFT generation workflow. It captures your AWS environment details and selected Cohesity workflows.
+
+### Configuration Sections
+
+| Section | Purpose |
+|---------|---------|
+| `aws` | Account ID, regions, tagging conventions for scoping |
+| `selected_features` | Which Cohesity workflows the customer actually uses (e.g., `source_registration_aws`, `ec2_vm_backup`) |
+| `s3` | Bucket patterns, existing buckets, KMS encryption settings |
+| `ec2` | VPC/subnet restrictions, instance types, tagging conditions |
+| `rds` | Snapshot prefix, allowed DB engines |
+| `iam` | Role naming prefix, permissions boundary settings |
+| `output` | Output format (CloudFormation or IAM policy) and filename |
+
+### How Config Values Scope the CFT
+
+- `account_id` → used in ARNs like `arn:aws:iam::{account_id}:role/Cohesity*`
+- `tag_key/tag_value` → injected as IAM conditions: `"ec2:ResourceTag/CohesityManaged": "true"`
+- `s3.bucket_pattern` → scopes S3 to `arn:aws:s3:::cohesity-*`
+- `ec2.vpc_ids/subnet_ids` → restricts EC2 operations to specific VPCs
+- `iam.role_name_prefix` → scopes IAM to `arn:aws:iam::*:role/Cohesity*`
+
+### End-to-End Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. CONFIGURE (Interactive or Manual)                          │
+│     cohesity-iam-scoper configure                               │
+│     → Questionnaire asks about workflows, AWS details           │
+│     → Generates cohesity-config.json                            │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  2. GENERATE                                                    │
+│     cohesity-iam-scoper generate --config cohesity-config.json  │
+│                                                                 │
+│     a) Loads config → reads selected_features                   │
+│     b) PermissionMapper looks up required IAM actions from      │
+│        data/aws_permission_map.json                             │
+│     c) FeatureDetector resolves permissions + resource scoping  │
+│     d) CFTGenerator/PolicyGenerator builds the output with      │
+│        scoped ARNs and conditions based on config values        │
+│     → Outputs scoped-cft.json (minimal IAM roles)               │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  3. COMPARE (Optional)                                          │
+│     cohesity-iam-scoper compare --current cft.json --scoped ... │
+│     → Shows permission reduction (e.g., 156→47 permissions)     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+In short: fill in the config with your AWS environment details, and the tool generates a least-privilege CFT instead of the default wildcard `Resource: *` permissions.
+
 ## Command Reference
 
 ### `init` - Initialize Configuration
