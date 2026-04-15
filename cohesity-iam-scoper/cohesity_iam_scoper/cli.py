@@ -206,8 +206,12 @@ def generate(config, output, output_format, account_id, features, permission_map
     formatter = OutputFormatter()
     formatter.print_banner()
 
-    with open(config) as f:
-        configuration = json.load(f)
+    try:
+        with open(config) as f:
+            configuration = json.load(f)
+    except json.JSONDecodeError as exc:
+        formatter.print_error(f"Failed to parse config file '{config}': {exc}")
+        sys.exit(1)
 
     # --- Apply CLI overrides onto the loaded config ---
     if account_id is not None:
@@ -244,6 +248,16 @@ def generate(config, output, output_format, account_id, features, permission_map
             f"aws.tag_value '{_tag_value}' contains characters not allowed in IAM tag values.\n"
             "Allowed: letters, numbers, spaces, and _ . : / = + - @"
         )
+        sys.exit(1)
+
+    # Validate configuration structure and values.
+    from cohesity_iam_scoper.validators.config_validator import validate_config
+    _cfg_errors, _cfg_warnings = validate_config(configuration)
+    for w in _cfg_warnings:
+        console.print(f"[yellow]⚠  {w}[/yellow]")
+    if _cfg_errors:
+        for e in _cfg_errors:
+            formatter.print_error(e)
         sys.exit(1)
 
     console.print(f"[cyan]Loaded configuration:[/cyan] {config}")

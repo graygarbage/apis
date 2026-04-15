@@ -288,6 +288,24 @@ def _apply_customer_context(
                         "s3:GetInventoryConfiguration", "s3:GetBucketOwnershipControls"):
             new_rule["resource"] = bucket_resources
 
+    # --- EC2 VPC/subnet scoping: narrow wildcard ARNs to specific IDs when provided ---
+    if service_prefix == "ec2" and (vpc_ids or subnet_ids):
+        resource = new_rule.get("resource", "*")
+        if isinstance(resource, list):
+            expanded: list[Any] = []
+            for r in resource:
+                if vpc_ids and isinstance(r, str) and r.endswith(":vpc/*"):
+                    expanded.extend(
+                        r[: r.rfind("/")] + f"/{vid}" for vid in vpc_ids
+                    )
+                elif subnet_ids and isinstance(r, str) and r.endswith(":subnet/*"):
+                    expanded.extend(
+                        r[: r.rfind("/")] + f"/{sid}" for sid in subnet_ids
+                    )
+                else:
+                    expanded.append(r)
+            new_rule["resource"] = expanded
+
     if service_prefix == "ec2" and use_tagging and action not in _EC2_CUSTOMER_RESOURCE_ACTIONS:
         condition_keys = new_rule.get("condition_keys", [])
         tag_conditions: dict[str, Any] = {}
@@ -340,9 +358,23 @@ def _apply_customer_context(
             if use_pb:
                 if not pb_arn:
                     role_prefix_val = iam_config.get("role_name_prefix", "Cohesity")
-                    pb_arn = f"arn:aws:iam::{account}:policy/{role_prefix_val}PermissionsBoundary"
+                    if account.startswith("${"):
+                        # account_id not supplied; use CFT Fn::Sub so the ARN resolves
+                        # at deploy time rather than embedding a broken literal placeholder.
+                        pb_arn_condition_value: Any = {
+                            "Fn::Sub": (
+                                "arn:aws:iam::${AWS::AccountId}:policy/"
+                                "${RoleNamePrefix}PermissionsBoundary"
+                            )
+                        }
+                    else:
+                        pb_arn_condition_value = (
+                            f"arn:aws:iam::{account}:policy/{role_prefix_val}PermissionsBoundary"
+                        )
+                else:
+                    pb_arn_condition_value = pb_arn
                 new_rule["conditions"] = {
-                    "StringEquals": {"iam:PermissionsBoundary": pb_arn}
+                    "StringEquals": {"iam:PermissionsBoundary": pb_arn_condition_value}
                 }
 
     if service_prefix not in ("ec2", "s3", "iam", "kms"):

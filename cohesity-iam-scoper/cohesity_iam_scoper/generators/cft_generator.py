@@ -193,7 +193,10 @@ class CFTGenerator:
             if not named_policies:
                 continue
 
-            trust_policy = _build_trust_policy(role_name, cohesity_account_id)
+            trust_policy = _build_trust_policy(
+                role_name, cohesity_account_id,
+                external_id=iam_config.get("external_id", ""),
+            )
             inline_policies: list[dict] = []
             managed_arns: list[Any] = []
 
@@ -506,13 +509,21 @@ def _chunk_statements(statements: list, limit: int) -> list[list]:
     return chunks
 
 
-def _build_trust_policy(role_name: str, cohesity_account_id: str) -> dict[str, Any]:
+def _build_trust_policy(
+    role_name: str,
+    cohesity_account_id: str,
+    external_id: str = "",
+) -> dict[str, Any]:
     """Build a role trust policy.
 
     All roles except CohesityInstanceRole trust the CE account root so that
     Cohesity's instance role (in the CE account) can assume them cross-account.
     The CohesityInstanceRole trusts the EC2 service and is only created when
     deploying in the CE account (see RunningCE condition).
+
+    When ``external_id`` is set it is added as an ``sts:ExternalId`` condition
+    on the ``sts:AssumeRole`` statement for all account-principal roles, which
+    prevents confused-deputy attacks across shared tenants.
     """
     if role_name == "CohesityInstanceRole":
         principal: Any = {"Service": "ec2.amazonaws.com"}
@@ -526,15 +537,22 @@ def _build_trust_policy(role_name: str, cohesity_account_id: str) -> dict[str, A
         # portable — override the parameter at deploy time for cross-account use.
         principal = {"AWS": {"Fn::Sub": "arn:aws:iam::${CohesityAccountId}:root"}}
 
+    statement: dict[str, Any] = {
+        "Effect": "Allow",
+        "Principal": principal,
+        "Action": "sts:AssumeRole",
+    }
+
+    # Add sts:ExternalId condition for account-principal roles when configured.
+    # Service principals (EC2, RDS) do not support ExternalId in AssumeRole.
+    if external_id and role_name not in ("CohesityInstanceRole", "CohesityBackupS3StagingRole"):
+        statement["Condition"] = {
+            "StringEquals": {"sts:ExternalId": external_id}
+        }
+
     return {
         "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Principal": principal,
-                "Action": "sts:AssumeRole",
-            }
-        ],
+        "Statement": [statement],
     }
 
 
