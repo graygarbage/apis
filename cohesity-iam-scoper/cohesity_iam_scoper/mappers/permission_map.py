@@ -2,21 +2,73 @@
 
 import json
 import os
-from typing import Any
+from typing import Any, Optional
 
 
 _DATA_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "aws_permission_map.json"
 )
+_CFT_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", "cft.json"
+)
+_CFT_MAP_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "cft_policy_feature_map.json"
+)
+
+
+def _load_cft_feature_actions(
+    cft_path: str, cft_map_path: str
+) -> dict[str, list[str]]:
+    """Build feature_key -> [actions] from the CFT and the policy-feature map.
+
+    The CFT is Cohesity's authoritative source for which IAM actions each role
+    requires. The policy-feature map assigns each CFT inline policy to one or
+    more feature keys. Features that share a role/policy (e.g. ec2_vm_backup
+    and ec2_vm_restore both live in source-regis-access) get the full union of
+    actions for that policy — which is correct because Cohesity uses a single
+    role for all of those workflows.
+
+    Features absent from the map (e.g. cloudformation_management) fall back to
+    the required arrays in aws_permission_map.json.
+    """
+    # Import here to avoid a circular import at module load time.
+    from cohesity_iam_scoper.parsers.cft_parser import CFTParser  # noqa: PLC0415
+
+    policy_actions = CFTParser().extract_policy_actions(cft_path)
+
+    with open(cft_map_path, "r", encoding="utf-8") as fh:
+        policy_feature_map: dict[str, list[str]] = json.load(fh)
+
+    feature_actions: dict[str, set[str]] = {}
+    for policy_key, features in policy_feature_map.items():
+        actions = policy_actions.get(policy_key, [])
+        for feature_key in features:
+            feature_actions.setdefault(feature_key, set()).update(actions)
+
+    return {k: sorted(v) for k, v in feature_actions.items()}
 
 
 class PermissionMapper:
     """Loads the AWS permission map and provides feature-to-IAM lookups."""
 
-    def __init__(self, data_file: str = _DATA_FILE) -> None:
+    def __init__(
+        self,
+        data_file: str = _DATA_FILE,
+        cft_path: Optional[str] = None,
+        cft_map_path: str = _CFT_MAP_FILE,
+    ) -> None:
         resolved = os.path.realpath(data_file)
         with open(resolved, "r", encoding="utf-8") as fh:
             self._map: dict[str, Any] = json.load(fh)
+
+        # When the CFT and its policy-feature map are both available, derive
+        # required permission lists directly from the CFT instead of from the
+        # manually maintained arrays in aws_permission_map.json.
+        self._cft_feature_actions: dict[str, list[str]] = {}
+        _cft = os.path.realpath(cft_path or _CFT_FILE)
+        _map = os.path.realpath(cft_map_path)
+        if os.path.isfile(_cft) and os.path.isfile(_map):
+            self._cft_feature_actions = _load_cft_feature_actions(_cft, _map)
 
     @property
     def feature_keys(self) -> list[str]:
@@ -30,7 +82,15 @@ class PermissionMapper:
         return self._map[feature_key]
 
     def get_required_permissions(self, feature_key: str) -> list[str]:
-        """Return the required IAM action list for a feature."""
+        """Return the required IAM action list for a feature.
+
+        When a CFT and policy-feature map are present, actions come from the
+        CFT (Cohesity's authoritative source). Falls back to the manually
+        maintained ``required`` arrays for features not covered by the map
+        (e.g. cloudformation_management).
+        """
+        if feature_key in self._cft_feature_actions:
+            return self._cft_feature_actions[feature_key]
         feature = self.get_feature(feature_key)
         return feature.get("iam_permissions", {}).get("required", [])
 

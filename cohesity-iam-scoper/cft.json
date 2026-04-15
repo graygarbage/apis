@@ -1,887 +1,885 @@
 {
-  "AWSTemplateFormatVersion": "2010-09-09",
-  "Conditions": {
-    "ArchiveFlow": {
-      "Fn::Or": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "Workflow"
-            },
-            "external_target"
-          ]
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Conditions": {
+        "ArchiveFlow": {
+            "Fn::Or": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Workflow"
+                        },
+                        "external_target"
+                    ]
+                },
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Workflow"
+                        },
+                        "both"
+                    ]
+                }
+            ]
         },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "Workflow"
-            },
-            "both"
-          ]
-        }
-      ]
-    },
-    "RestoreFlow": {
-      "Fn::Or": [
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "Workflow"
-            },
-            "source_registration"
-          ]
+        "RestoreFlow": {
+            "Fn::Or": [
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Workflow"
+                        },
+                        "source_registration"
+                    ]
+                },
+                {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "Workflow"
+                        },
+                        "both"
+                    ]
+                }
+            ]
         },
-        {
-          "Fn::Equals": [
-            {
-              "Ref": "Workflow"
-            },
-            "both"
-          ]
+        "RunningCE": {
+            "Fn::Equals": [
+                {
+                    "Ref": "AccountID"
+                },
+                {
+                    "Ref": "AWS::AccountId"
+                }
+            ]
         }
-      ]
     },
-    "RunningCE": {
-      "Fn::Equals": [
-        {
-          "Ref": "AccountID"
+    "Metadata": {
+        "Copyright": "Copyright 2020 Cohesity Inc."
+    },
+    "Outputs": {
+        "ArchiveWorkflowRoleArn": {
+            "Condition": "ArchiveFlow",
+            "Description": "The role for archival work flow.",
+            "Value": {
+                "Fn::GetAtt": [
+                    "CohesityArchiveRole",
+                    "Arn"
+                ]
+            }
         },
-        {
-          "Ref": "AWS::AccountId"
+        "BackupS3StagingRoleArn": {
+            "Condition": "RestoreFlow",
+            "Description": "The role for AWS services which use s3 buckets as staging location in backup and restore.",
+            "Value": {
+                "Fn::GetAtt": [
+                    "CohesityBackupS3StagingRole",
+                    "Arn"
+                ]
+            }
+        },
+        "InstanceProfile": {
+            "Condition": "RunningCE",
+            "Description": "The instance profile that need to be associated with EC2 instance.",
+            "Value": {
+                "Ref": "CohesityInstanceProfile"
+            }
+        },
+        "RestoreWorkflowRoleArn": {
+            "Condition": "RestoreFlow",
+            "Description": "The role for restore/cloudspin/CSM/RDS work flow.",
+            "Value": {
+                "Fn::GetAtt": [
+                    "CohesitySourceRegistrationRole",
+                    "Arn"
+                ]
+            }
         }
-      ]
-    }
-  },
-  "Metadata": {
-    "Copyright": "Copyright 2020 Cohesity Inc."
-  },
-  "Outputs": {
-    "ArchiveWorkflowRoleArn": {
-      "Condition": "ArchiveFlow",
-      "Description": "The role for archival work flow.",
-      "Value": {
-        "Fn::GetAtt": [
-          "CohesityArchiveRole",
-          "Arn"
-        ]
-      }
     },
-    "BackupS3StagingRoleArn": {
-      "Condition": "RestoreFlow",
-      "Description": "The role for AWS services which use s3 buckets as staging location in backup and restore.",
-      "Value": {
-        "Fn::GetAtt": [
-          "CohesityBackupS3StagingRole",
-          "Arn"
-        ]
-      }
+    "Parameters": {
+        "AccountID": {
+            "Description": "Enter account id for the account that is running CE.",
+            "Type": "Number"
+        },
+        "Workflow": {
+            "AllowedValues": [
+                "external_target",
+                "source_registration",
+                "both"
+            ],
+            "Default": "external_target",
+            "Description": "Enter external_target, source_registration or both. Default is external_target.",
+            "Type": "String"
+        }
     },
-    "InstanceProfile": {
-      "Condition": "RunningCE",
-      "Description": "The instance profile that need to be associated with EC2 instance.",
-      "Value": {
-        "Ref": "CohesityInstanceProfile"
-      }
-    },
-    "RestoreWorkflowRoleArn": {
-      "Condition": "RestoreFlow",
-      "Description": "The role for restore/cloudspin/CSM/RDS work flow.",
-      "Value": {
-        "Fn::GetAtt": [
-          "CohesitySourceRegistrationRole",
-          "Arn"
-        ]
-      }
-    }
-  },
-  "Parameters": {
-    "AccountID": {
-      "Description": "Enter account id for the account that is running CE.",
-      "Type": "Number"
-    },
-    "Workflow": {
-      "AllowedValues": [
-        "external_target",
-        "source_registration",
-        "both"
-      ],
-      "Default": "external_target",
-      "Description": "Enter external_target, source_registration or both. Default is external_target.",
-      "Type": "String"
-    }
-  },
-  "Resources": {
-    "CohesityArchiveRole": {
-      "Condition": "ArchiveFlow",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "sts:AssumeRole"
-              ],
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::If": [
-                    "RunningCE",
+    "Resources": {
+        "CohesityArchiveRole": {
+            "Condition": "ArchiveFlow",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": {
+                                    "Fn::If": [
+                                        "RunningCE",
+                                        {
+                                            "Fn::GetAtt": [
+                                                "CohesityInstanceRole",
+                                                "Arn"
+                                            ]
+                                        },
+                                        {
+                                            "Fn::Join": [
+                                                ":",
+                                                [
+                                                    "arn:aws:iam:",
+                                                    {
+                                                        "Ref": "AccountID"
+                                                    },
+                                                    "role/CohesityInstanceRole"
+                                                ]
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                },
+                "Policies": [
                     {
-                      "Fn::GetAtt": [
-                        "CohesityInstanceRole",
-                        "Arn"
-                      ]
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "s3:AbortMultipartUpload",
+                                        "s3:DeleteObject",
+                                        "s3:DeleteObjectVersion",
+                                        "s3:GetObject",
+                                        "s3:GetObjectAttributes",
+                                        "s3:GetObjectVersion",
+                                        "s3:GetObjectVersionAttributes",
+                                        "s3:GetLifecycleConfiguration",
+                                        "s3:ListMultipartUploadParts",
+                                        "s3:PutObject",
+                                        "s3:PutObjectRetention",
+                                        "s3:RestoreObject"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "arn:aws:s3:::*/*"
+                                    ]
+                                },
+                                {
+                                    "Action": [
+                                        "s3:GetBucketLocation",
+                                        "s3:GetBucketVersioning",
+                                        "s3:GetBucketObjectLockConfiguration",
+                                        "s3:GetLifecycleConfiguration",
+                                        "s3:ListBucket",
+                                        "s3:ListBucketMultipartUploads",
+                                        "s3:ListBucketVersions",
+                                        "s3:GetIntelligentTieringConfiguration",
+                                        "kms:GenerateDataKey",
+                                        "kms:Decrypt"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "glacier:InitiateJob",
+                                        "glacier:AbortMultipartUpload",
+                                        "glacier:DescribeVault",
+                                        "glacier:GetJobOutput",
+                                        "glacier:DeleteArchive",
+                                        "glacier:ListParts",
+                                        "glacier:DescribeJob",
+                                        "glacier:CompleteMultipartUpload",
+                                        "glacier:InitiateMultipartUpload",
+                                        "glacier:UploadMultipartPart"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "arn:aws:glacier:*:*:vaults/*"
+                                    ]
+                                },
+                                {
+                                    "Action": "glacier:ListProvisionedCapacity",
+                                    "Effect": "Allow",
+                                    "Resource": "*",
+                                    "Sid": "VisualEditor1"
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "external-target-regis-access"
+                    }
+                ],
+                "RoleName": "CohesityArchiveRole"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "CohesityBackupS3StagingRole": {
+            "Condition": "RestoreFlow",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "rds.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                },
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores",
+                    "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
+                ],
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "s3:ListBucket",
+                                        "s3:GetBucketLocation",
+                                        "s3:GetObjectAcl",
+                                        "s3:GetObjectAttributes",
+                                        "s3:GetObject",
+                                        "s3:PutObject",
+                                        "s3:DeleteObject",
+                                        "s3:ListMultipartUploadParts",
+                                        "s3:AbortMultipartUpload"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:s3:::*"
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "BackupS3StagingPolicy"
+                    }
+                ],
+                "RoleName": "CohesityBackupS3StagingRole"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "CohesityInstanceProfile": {
+            "Condition": "RunningCE",
+            "Properties": {
+                "InstanceProfileName": "CohesityInstanceProfile",
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "CohesityInstanceRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
+        "CohesityInstanceRole": {
+            "Condition": "RunningCE",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": "sts:AssumeRole",
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:iam::*:role/*"
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "assume-role"
+                    }
+                ],
+                "RoleName": "CohesityInstanceRole"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "CohesitySourceRegistrationRole": {
+            "Condition": "RestoreFlow",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": {
+                                    "Fn::If": [
+                                        "RunningCE",
+                                        {
+                                            "Fn::GetAtt": [
+                                                "CohesityInstanceRole",
+                                                "Arn"
+                                            ]
+                                        },
+                                        {
+                                            "Fn::Join": [
+                                                ":",
+                                                [
+                                                    "arn:aws:iam:",
+                                                    {
+                                                        "Ref": "AccountID"
+                                                    },
+                                                    "role/CohesityInstanceRole"
+                                                ]
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "Service": [
+                                    "glue.amazonaws.com",
+                                    "redshift.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ],
+                    "Version": "2012-10-17"
+                },
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "ebs:StartSnapshot",
+                                        "ebs:PutSnapshotBlock",
+                                        "ebs:CompleteSnapshot",
+                                        "ebs:GetSnapshotBlock",
+                                        "ebs:ListChangedBlocks",
+                                        "ebs:ListSnapshotBlocks",
+                                        "ec2:AllocateAddress",
+                                        "ec2:AssociateSubnetCidrBlock",
+                                        "ec2:AssociateVpcCidrBlock",
+                                        "ec2:AttachInternetGateway",
+                                        "ec2:AttachNetworkInterface",
+                                        "ec2:AttachVolume",
+                                        "ec2:AttachVpnGateway",
+                                        "ec2:AuthorizeSecurityGroupIngress",
+                                        "ec2:CancelImportTask",
+                                        "ec2:CopySnapshot",
+                                        "ec2:CreateFleet",
+                                        "ec2:CreateImage",
+                                        "ec2:CreateInstanceExportTask",
+                                        "ec2:CreateKeyPair",
+                                        "ec2:CreateNetworkInterface",
+                                        "ec2:CreateSecurityGroup",
+                                        "ec2:CreateSnapshot",
+                                        "ec2:CreateTags",
+                                        "ec2:CreateVolume",
+                                        "ec2:DeleteNetworkInterface",
+                                        "ec2:DeleteSnapshot",
+                                        "ec2:DeleteTags",
+                                        "ec2:DeleteVolume",
+                                        "ec2:DeregisterImage",
+                                        "ec2:DescribeAvailabilityZones",
+                                        "ec2:DescribeExportTasks",
+                                        "ec2:DescribeFleetHistory",
+                                        "ec2:DescribeFleetInstances",
+                                        "ec2:DescribeFleets",
+                                        "ec2:DescribeImages",
+                                        "ec2:DescribeImportImageTasks",
+                                        "ec2:DescribeImportSnapshotTasks",
+                                        "ec2:DescribeInstanceAttribute",
+                                        "ec2:DescribeInstanceCreditSpecifications",
+                                        "ec2:DescribeInstances",
+                                        "ec2:DescribeInstanceStatus",
+                                        "ec2:DescribeKeyPairs",
+                                        "ec2:DescribeNetworkInterfaces",
+                                        "ec2:DescribeRegions",
+                                        "ec2:DescribeReservedInstances",
+                                        "ec2:DescribeReservedInstancesListings",
+                                        "ec2:DescribeReservedInstancesModifications",
+                                        "ec2:DescribeReservedInstancesOfferings",
+                                        "ec2:DescribeSecurityGroupReferences",
+                                        "ec2:DescribeSecurityGroups",
+                                        "ec2:DescribeSnapshotAttribute",
+                                        "ec2:DescribeSnapshots",
+                                        "ec2:DescribeSubnets",
+                                        "ec2:DescribeTags",
+                                        "ec2:DescribeVolumeAttribute",
+                                        "ec2:DescribeVolumes",
+                                        "ec2:DescribeVolumes",
+                                        "ec2:DescribeVolumeStatus",
+                                        "ec2:DescribeVpcAttribute",
+                                        "ec2:DescribeVpcClassicLink",
+                                        "ec2:DescribeVpcClassicLinkDnsSupport",
+                                        "ec2:DescribeVpcEndpointConnectionNotifications",
+                                        "ec2:DescribeVpcEndpointConnections",
+                                        "ec2:DescribeVpcEndpoints",
+                                        "ec2:DescribeVpcEndpointServiceConfigurations",
+                                        "ec2:DescribeVpcEndpointServicePermissions",
+                                        "ec2:DescribeVpcEndpointServices",
+                                        "ec2:DescribeVpcPeeringConnections",
+                                        "ec2:DescribeVpcs",
+                                        "ec2:DetachNetworkInterface",
+                                        "ec2:DetachVolume",
+                                        "ec2:ImportImage",
+                                        "ec2:ImportInstance",
+                                        "ec2:ImportKeyPair",
+                                        "ec2:ImportSnapshot",
+                                        "ec2:ImportVolume",
+                                        "ec2:ModifyFleet",
+                                        "ec2:ModifyInstanceAttribute",
+                                        "ec2:ModifyNetworkInterfaceAttribute",
+                                        "ec2:ModifySnapshotAttribute",
+                                        "ec2:ModifyVolume",
+                                        "ec2:ModifyVolumeAttribute",
+                                        "ec2:RegisterImage",
+                                        "ec2:RunInstances",
+                                        "ec2:StartInstances",
+                                        "ec2:StopInstances",
+                                        "ec2:TerminateInstances",
+                                        "iam:AddRoleToInstanceProfile",
+                                        "iam:AttachRolePolicy",
+                                        "iam:CreateRole",
+                                        "iam:DeleteRole",
+                                        "iam:DeleteRolePolicy",
+                                        "iam:GetAccessKeyLastUsed",
+                                        "iam:GetInstanceProfile",
+                                        "iam:GetPolicy",
+                                        "iam:GetRole",
+                                        "iam:GetRolePolicy",
+                                        "iam:GetUser",
+                                        "iam:GetUserPolicy",
+                                        "iam:ListAccessKeys",
+                                        "iam:ListPolicies",
+                                        "iam:ListRolePolicies",
+                                        "iam:ListRoles",
+                                        "iam:ListRoleTags",
+                                        "iam:PassRole",
+                                        "iam:PutRolePolicy",
+                                        "iam:TagRole",
+                                        "iam:UntagRole",
+                                        "iam:UpdateRole",
+                                        "kms:CreateGrant",
+                                        "kms:Decrypt",
+                                        "kms:DescribeKey",
+                                        "kms:Encrypt",
+                                        "kms:GenerateDataKey",
+                                        "kms:GenerateDataKeyWithoutPlaintext",
+                                        "kms:ListAliases",
+                                        "kms:ReEncryptFrom",
+                                        "kms:ReEncryptTo",
+                                        "kms:ListKeys",
+                                        "rds:AddTagsToResource",
+                                        "rds:CopyDBClusterSnapshot",
+                                        "rds:CopyDBSnapshot",
+                                        "rds:CreateDBClusterSnapshot",
+                                        "rds:CreateDBInstance",
+                                        "rds:CreateDBSnapshot",
+                                        "rds:DeleteDBClusterSnapshot",
+                                        "rds:DeleteDBSnapshot",
+                                        "rds:DescribeDBClusterSnapshots",
+                                        "rds:DescribeDBClusters",
+                                        "rds:DescribeDBInstances",
+                                        "rds:DescribeDBParameterGroups",
+                                        "rds:DescribeDBSnapshots",
+                                        "rds:DescribeDBSubnetGroups",
+                                        "rds:DescribeTenantDatabases",
+                                        "rds:DescribeOptionGroups",
+                                        "rds:DescribeSourceRegions",
+                                        "rds:ModifyDBClusterSnapshotAttribute",
+                                        "rds:ModifyDBSnapshotAttribute",
+                                        "rds:RestoreDBClusterFromSnapshot",
+                                        "rds:RestoreDBInstanceFromDBSnapshot",
+                                        "rds:RestoreDBInstanceToPointInTime",
+                                        "redshift:DescribeClusters",
+                                        "redshift:GetClusterCredentials",
+                                        "redshift:GetClusterCredentialsWithIAM",
+                                        "redshift:ListDatabases",
+                                        "redshift-data:CancelStatement",
+                                        "redshift-data:DescribeStatement",
+                                        "redshift-data:ExecuteStatement",
+                                        "redshift-data:GetStatementResult",
+                                        "redshift-data:ListDatabases",
+                                        "s3:AbortMultipartUpload",
+                                        "s3:CreateBucket",
+                                        "s3:DeleteObject",
+                                        "s3:DeleteObjectTagging",
+                                        "s3:DeleteObjectVersion",
+                                        "s3:DeleteObjectVersionTagging",
+                                        "s3:GetBucketAcl",
+                                        "s3:GetBucketLocation",
+                                        "s3:GetBucketObjectLockConfiguration",
+                                        "s3:GetBucketOwnershipControls",
+                                        "s3:GetBucketPolicy",
+                                        "s3:GetBucketTagging",
+                                        "s3:GetBucketVersioning",
+                                        "s3:GetLifecycleConfiguration",
+                                        "s3:GetObject",
+                                        "s3:GetObjectAcl",
+                                        "s3:GetObjectAttributes",
+                                        "s3:GetObjectTagging",
+                                        "s3:GetObjectTorrent",
+                                        "s3:GetObjectVersion",
+                                        "s3:GetObjectVersionAcl",
+                                        "s3:GetObjectVersionAttributes",
+                                        "s3:GetObjectVersionTagging",
+                                        "s3:GetObjectVersionTorrent",
+                                        "s3:HeadObject",
+                                        "s3:ListAllMyBuckets",
+                                        "s3:ListBucket",
+                                        "s3:ListMultipartUploadParts",
+                                        "s3:PutBucketAcl",
+                                        "s3:PutBucketPolicy",
+                                        "s3:PutBucketPublicAccessBlock",
+                                        "s3:PutBucketTagging",
+                                        "s3:PutObject",
+                                        "s3:PutObjectAcl",
+                                        "s3:PutObjectRetention",
+                                        "s3:PutObjectTagging",
+                                        "s3:PutObjectVersionAcl",
+                                        "s3:PutObjectVersionTagging",
+                                        "s3:RestoreObject",
+                                        "ssm:GetCommandInvocation",
+                                        "ssm:SendCommand",
+                                        "ssm:UpdateInstanceInformation",
+                                        "ssmmessages:*"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "ec2:AttachVolume",
+                                        "ec2:AuthorizeSecurityGroupEgress",
+                                        "ec2:AuthorizeSecurityGroupIngress",
+                                        "ec2:CreateSnapshot",
+                                        "ec2:CreateTags",
+                                        "ec2:CreateVolume",
+                                        "ec2:DeleteSnapshot",
+                                        "ec2:DeleteVolume",
+                                        "ec2:DetachVolume",
+                                        "ec2:ModifySnapshotAttribute",
+                                        "ec2:RunInstances",
+                                        "ec2:StartInstances",
+                                        "ec2:StopInstances",
+                                        "ec2:TerminateInstances",
+                                        "s3:DeleteObject",
+                                        "s3:GetObject",
+                                        "s3:PutObject"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "arn:aws:ec2:*:*:subnet/*",
+                                        "arn:aws:ec2:*:*:key-pair/*",
+                                        "arn:aws:ec2:*:*:instance/*",
+                                        "arn:aws:ec2:*::snapshot/*",
+                                        "arn:aws:ec2:*:*:launch-template/*",
+                                        "arn:aws:ec2:*:*:volume/*",
+                                        "arn:aws:ec2:*:*:security-group/*",
+                                        "arn:aws:ec2:*:*:placement-group/*",
+                                        "arn:aws:ec2:*:*:network-interface/*",
+                                        "arn:aws:ec2:*::image/*",
+                                        "arn:aws:s3:::*/*"
+                                    ]
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "source-regis-access"
                     },
                     {
-                      "Fn::Join": [
-                        ":",
-                        [
-                          "arn:aws:iam:",
-                          {
-                            "Ref": "AccountID"
-                          },
-                          "role/CohesityInstanceRole"
-                        ]
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          ],
-          "Version": "2012-10-17"
-        },
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "s3:AbortMultipartUpload",
-                    "s3:DeleteObject",
-                    "s3:DeleteObjectVersion",
-                    "s3:GetObject",
-                    "s3:GetObjectAttributes",
-                    "s3:GetObjectVersion",
-                    "s3:GetObjectVersionAttributes",
-                    "s3:GetLifecycleConfiguration",
-                    "s3:ListMultipartUploadParts",
-                    "s3:PutObject",
-                    "s3:PutObjectRetention",
-                    "s3:RestoreObject"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": [
-                    "arn:aws:s3:::*/*"
-                  ]
-                },
-                {
-                  "Action": [
-                    "s3:GetBucketLocation",
-                    "s3:GetBucketVersioning",
-                    "s3:GetBucketObjectLockConfiguration",
-                    "s3:GetLifecycleConfiguration",
-                    "s3:ListBucket",
-                    "s3:ListBucketMultipartUploads",
-                    "s3:ListBucketVersions",
-                    "s3:GetIntelligentTieringConfiguration",
-                    "kms:GenerateDataKey",
-                    "kms:Decrypt"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "glacier:InitiateJob",
-                    "glacier:AbortMultipartUpload",
-                    "glacier:DescribeVault",
-                    "glacier:GetJobOutput",
-                    "glacier:DeleteArchive",
-                    "glacier:ListParts",
-                    "glacier:DescribeJob",
-                    "glacier:CompleteMultipartUpload",
-                    "glacier:InitiateMultipartUpload",
-                    "glacier:UploadMultipartPart"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": [
-                    "arn:aws:glacier:*:*:vaults/*"
-                  ]
-                },
-                {
-                  "Action": "glacier:ListProvisionedCapacity",
-                  "Effect": "Allow",
-                  "Resource": "*",
-                  "Sid": "VisualEditor1"
-                }
-              ],
-              "Version": "2012-10-17"
-            },
-            "PolicyName": "external-target-regis-access"
-          }
-        ],
-        "RoleName": "CohesityArchiveRole"
-      },
-      "Type": "AWS::IAM::Role"
-    },
-    "CohesityBackupS3StagingRole": {
-      "Condition": "RestoreFlow",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": [
-                  "rds.amazonaws.com"
-                ]
-              }
-            }
-          ],
-          "Version": "2012-10-17"
-        },
-        "ManagedPolicyArns": [
-          "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores",
-          "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
-        ],
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "s3:ListBucket",
-                    "s3:GetBucketLocation",
-                    "s3:GetObjectAcl",
-                    "s3:GetObjectAttributes",
-                    "s3:GetObject",
-                    "s3:PutObject",
-                    "s3:DeleteObject",
-                    "s3:ListMultipartUploadParts",
-                    "s3:AbortMultipartUpload"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "arn:aws:s3:::*"
-                }
-              ],
-              "Version": "2012-10-17"
-            },
-            "PolicyName": "BackupS3StagingPolicy"
-          }
-        ],
-        "RoleName": "CohesityBackupS3StagingRole"
-      },
-      "Type": "AWS::IAM::Role"
-    },
-    "CohesityInstanceProfile": {
-      "Condition": "RunningCE",
-      "Properties": {
-        "InstanceProfileName": "CohesityInstanceProfile",
-        "Path": "/",
-        "Roles": [
-          {
-            "Ref": "CohesityInstanceRole"
-          }
-        ]
-      },
-      "Type": "AWS::IAM::InstanceProfile"
-    },
-    "CohesityInstanceRole": {
-      "Condition": "RunningCE",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "sts:AssumeRole"
-              ],
-              "Effect": "Allow",
-              "Principal": {
-                "Service": [
-                  "ec2.amazonaws.com"
-                ]
-              }
-            }
-          ],
-          "Version": "2012-10-17"
-        },
-        "Path": "/",
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": "sts:AssumeRole",
-                  "Effect": "Allow",
-                  "Resource": "arn:aws:iam::*:role/*"
-                }
-              ],
-              "Version": "2012-10-17"
-            },
-            "PolicyName": "assume-role"
-          }
-        ],
-        "RoleName": "CohesityInstanceRole"
-      },
-      "Type": "AWS::IAM::Role"
-    },
-    "CohesitySourceRegistrationRole": {
-      "Condition": "RestoreFlow",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "sts:AssumeRole"
-              ],
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::If": [
-                    "RunningCE",
-                    {
-                      "Fn::GetAtt": [
-                        "CohesityInstanceRole",
-                        "Arn"
-                      ]
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "kms:GenerateDataKey",
+                                        "s3:GetBucketLocation",
+                                        "s3:GetBucketNotification",
+                                        "s3:GetBucketOwnershipControls",
+                                        "s3:GetBucketTagging",
+                                        "s3:GetBucketVersioning",
+                                        "s3:GetInventoryConfiguration",
+                                        "s3:GetObject",
+                                        "s3:GetObjectAcl",
+                                        "s3:GetObjectVersion",
+                                        "s3:ListAllMyBuckets",
+                                        "s3:ListBucket",
+                                        "s3:PutObject",
+                                        "s3:PutBucketNotification",
+                                        "s3:PutInventoryConfiguration",
+                                        "s3:GetObjectTagging",
+                                        "s3:PutObjectTagging",
+                                        "s3:GetObjectVersionTagging",
+                                        "s3:PutObjectVersionTagging",
+                                        "s3:PutObjectAcl",
+                                        "s3:GetObjectVersionAcl",
+                                        "s3:PutObjectVersionAcl"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "sqs:CreateQueue",
+                                        "sqs:TagQueue",
+                                        "sqs:ListQueues"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "sqs:DeleteQueue",
+                                        "sqs:DeleteMessage",
+                                        "sqs:GetQueueUrl",
+                                        "sqs:PurgeQueue",
+                                        "sqs:ReceiveMessage",
+                                        "sqs:GetQueueAttributes",
+                                        "sqs:SetQueueAttributes"
+                                    ],
+                                    "Condition": {
+                                        "StringLike": {
+                                            "aws:ResourceTag/UniqueTag": "cohesity_*"
+                                        }
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "events:PutRule",
+                                        "events:TagResource",
+                                        "events:ListRules"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "events:DeleteRule",
+                                        "events:PutTargets",
+                                        "events:RemoveTargets"
+                                    ],
+                                    "Condition": {
+                                        "StringLike": {
+                                            "aws:ResourceTag/UniqueTag": "cohesity_*"
+                                        }
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "glue:CreateJob",
+                                        "glue:TagResource"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "glue:DeleteJob",
+                                        "glue:StartJobRun",
+                                        "glue:UpdateJob",
+                                        "glue:GetJobRun"
+                                    ],
+                                    "Condition": {
+                                        "StringLike": {
+                                            "aws:ResourceTag/UniqueTag": "cohesity_*"
+                                        }
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "CohesityS3Policy"
                     },
                     {
-                      "Fn::Join": [
-                        ":",
-                        [
-                          "arn:aws:iam:",
-                          {
-                            "Ref": "AccountID"
-                          },
-                          "role/CohesityInstanceRole"
-                        ]
-                      ]
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "dynamodb:CreateTable",
+                                        "dynamodb:DescribeContinuousBackups",
+                                        "dynamodb:DescribeExport",
+                                        "dynamodb:DescribeImport",
+                                        "dynamodb:DescribeTable",
+                                        "dynamodb:ExportTableToPointInTime",
+                                        "dynamodb:ImportTable",
+                                        "dynamodb:ListTables",
+                                        "dynamodb:ListTagsOfResource",
+                                        "dynamodb:TagResource",
+                                        "dynamodb:UpdateContinuousBackups",
+                                        "dynamodb:UpdateTable",
+                                        "glue:CreateJob",
+                                        "glue:TagResource"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "dynamodb:BatchWriteItem",
+                                        "dynamodb:DeleteItem",
+                                        "dynamodb:GetItem",
+                                        "dynamodb:PutItem",
+                                        "dynamodb:Query",
+                                        "dynamodb:RestoreTableToPointInTime",
+                                        "dynamodb:Scan",
+                                        "dynamodb:UpdateItem"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "s3:CreateBucket",
+                                        "s3:GetBucketLocation",
+                                        "s3:PutBucketTagging"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:s3:::cohesity-ddb*"
+                                },
+                                {
+                                    "Action": [
+                                        "s3:DeleteBucket"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:s3:::cohesity-ddb*"
+                                },
+                                {
+                                    "Action": [
+                                        "s3:AbortMultipartUpload",
+                                        "s3:DeleteObject",
+                                        "s3:GetBucketVersioning",
+                                        "s3:GetObject",
+                                        "s3:GetObjectTagging",
+                                        "s3:GetObjectVersion",
+                                        "s3:ListBucket",
+                                        "s3:ListBucketMultipartUploads",
+                                        "s3:ListMultipartUploadParts",
+                                        "s3:PutObject",
+                                        "s3:PutObjectTagging"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "arn:aws:s3:::cohesity-ddb*",
+                                        "arn:aws:s3:::cohesity-ddb*/*"
+                                    ]
+                                },
+                                {
+                                    "Action": [
+                                        "glue:DeleteJob",
+                                        "glue:StartJobRun",
+                                        "glue:GetJobRun"
+                                    ],
+                                    "Condition": {
+                                        "StringLike": {
+                                            "aws:ResourceTag/UniqueTag": "cohesity_*"
+                                        }
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Action": [
+                                        "logs:DescribeLogGroups"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:logs:*:*:log-group*"
+                                },
+                                {
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:DescribeLogStreams",
+                                        "logs:GetLogEvents",
+                                        "logs:PutLogEvents",
+                                        "logs:PutRetentionPolicy"
+                                    ],
+                                    "Condition": {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "arn:aws:logs:*:*:log-group:/aws-dynamodb/*",
+                                        "arn:aws:logs:*:*:log-group:/aws-glue/*"
+                                    ]
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "CohesityDynamoDBPolicy"
+                    },
+                    {
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": "rds-db:connect",
+                                    "Effect": "Allow",
+                                    "Resource": "arn:aws:rds-db:*:*:dbuser:*/*"
+                                }
+                            ],
+                            "Version": "2012-10-17"
+                        },
+                        "PolicyName": "CohesityRDSDBConnectPolicy"
                     }
-                  ]
-                },
-                "Service": [
-                  "glue.amazonaws.com",
-                  "redshift.amazonaws.com"
-                ]
-              }
-            }
-          ],
-          "Version": "2012-10-17"
-        },
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "ebs:StartSnapshot",
-                    "ebs:PutSnapshotBlock",
-                    "ebs:CompleteSnapshot",
-                    "ebs:GetSnapshotBlock",
-                    "ebs:ListChangedBlocks",
-                    "ebs:ListSnapshotBlocks",
-                    "ec2:AllocateAddress",
-                    "ec2:AssociateSubnetCidrBlock",
-                    "ec2:AssociateVpcCidrBlock",
-                    "ec2:AttachInternetGateway",
-                    "ec2:AttachNetworkInterface",
-                    "ec2:AttachVolume",
-                    "ec2:AttachVpnGateway",
-                    "ec2:AuthorizeSecurityGroupIngress",
-                    "ec2:CancelImportTask",
-                    "ec2:CopySnapshot",
-                    "ec2:CreateFleet",
-                    "ec2:CreateImage",
-                    "ec2:CreateInstanceExportTask",
-                    "ec2:CreateKeyPair",
-                    "ec2:CreateNetworkInterface",
-                    "ec2:CreateSecurityGroup",
-                    "ec2:CreateSnapshot",
-                    "ec2:CreateTags",
-                    "ec2:CreateVolume",
-                    "ec2:DeleteNetworkInterface",
-                    "ec2:DeleteSnapshot",
-                    "ec2:DeleteTags",
-                    "ec2:DeleteVolume",
-                    "ec2:DeregisterImage",
-                    "ec2:DescribeAvailabilityZones",
-                    "ec2:DescribeExportTasks",
-                    "ec2:DescribeFleetHistory",
-                    "ec2:DescribeFleetInstances",
-                    "ec2:DescribeFleets",
-                    "ec2:DescribeImages",
-                    "ec2:DescribeImportImageTasks",
-                    "ec2:DescribeImportSnapshotTasks",
-                    "ec2:DescribeInstanceAttribute",
-                    "ec2:DescribeInstanceCreditSpecifications",
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeInstanceStatus",
-                    "ec2:DescribeKeyPairs",
-                    "ec2:DescribeNetworkInterfaces",
-                    "ec2:DescribeRegions",
-                    "ec2:DescribeReservedInstances",
-                    "ec2:DescribeReservedInstancesListings",
-                    "ec2:DescribeReservedInstancesModifications",
-                    "ec2:DescribeReservedInstancesOfferings",
-                    "ec2:DescribeSecurityGroupReferences",
-                    "ec2:DescribeSecurityGroups",
-                    "ec2:DescribeSnapshotAttribute",
-                    "ec2:DescribeSnapshots",
-                    "ec2:DescribeSubnets",
-                    "ec2:DescribeTags",
-                    "ec2:DescribeVolumeAttribute",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeVolumeStatus",
-                    "ec2:DescribeVpcAttribute",
-                    "ec2:DescribeVpcClassicLink",
-                    "ec2:DescribeVpcClassicLinkDnsSupport",
-                    "ec2:DescribeVpcEndpointConnectionNotifications",
-                    "ec2:DescribeVpcEndpointConnections",
-                    "ec2:DescribeVpcEndpoints",
-                    "ec2:DescribeVpcEndpointServiceConfigurations",
-                    "ec2:DescribeVpcEndpointServicePermissions",
-                    "ec2:DescribeVpcEndpointServices",
-                    "ec2:DescribeVpcPeeringConnections",
-                    "ec2:DescribeVpcs",
-                    "ec2:DetachNetworkInterface",
-                    "ec2:DetachVolume",
-                    "ec2:ImportImage",
-                    "ec2:ImportInstance",
-                    "ec2:ImportKeyPair",
-                    "ec2:ImportSnapshot",
-                    "ec2:ImportVolume",
-                    "ec2:ModifyFleet",
-                    "ec2:ModifyInstanceAttribute",
-                    "ec2:ModifyNetworkInterfaceAttribute",
-                    "ec2:ModifySnapshotAttribute",
-                    "ec2:ModifyVolume",
-                    "ec2:ModifyVolumeAttribute",
-                    "ec2:RegisterImage",
-                    "ec2:RunInstances",
-                    "ec2:StartInstances",
-                    "ec2:StopInstances",
-                    "ec2:TerminateInstances",
-                    "iam:AddRoleToInstanceProfile",
-                    "iam:AttachRolePolicy",
-                    "iam:CreatePolicy",
-                    "iam:CreateRole",
-                    "iam:DeleteRole",
-                    "iam:DeleteRolePolicy",
-                    "iam:GetAccessKeyLastUsed",
-                    "iam:GetInstanceProfile",
-                    "iam:GetPolicy",
-                    "iam:GetRole",
-                    "iam:GetRolePolicy",
-                    "iam:GetUser",
-                    "iam:GetUserPolicy",
-                    "iam:ListAccessKeys",
-                    "iam:ListPolicies",
-                    "iam:ListRolePolicies",
-                    "iam:ListRoles",
-                    "iam:ListRoleTags",
-                    "iam:PassRole",
-                    "iam:PutRolePolicy",
-                    "iam:TagRole",
-                    "iam:UntagRole",
-                    "iam:UpdateRole",
-                    "iam:UpdateUser",
-                    "kms:CreateGrant",
-                    "kms:Decrypt",
-                    "kms:DescribeKey",
-                    "kms:Encrypt",
-                    "kms:GenerateDataKey",
-                    "kms:GenerateDataKeyWithoutPlaintext",
-                    "kms:ListAliases",
-                    "kms:ReEncryptFrom",
-                    "kms:ReEncryptTo",
-                    "kms:ListKeys",
-                    "rds:AddTagsToResource",
-                    "rds:CopyDBClusterSnapshot",
-                    "rds:CopyDBSnapshot",
-                    "rds:CreateDBClusterSnapshot",
-                    "rds:CreateDBInstance",
-                    "rds:CreateDBSnapshot",
-                    "rds:DeleteDBClusterSnapshot",
-                    "rds:DeleteDBSnapshot",
-                    "rds:DescribeDBClusterSnapshots",
-                    "rds:DescribeDBClusters",
-                    "rds:DescribeDBInstances",
-                    "rds:DescribeDBParameterGroups",
-                    "rds:DescribeDBSnapshots",
-                    "rds:DescribeDBSubnetGroups",
-                    "rds:DescribeTenantDatabases",
-                    "rds:DescribeOptionGroups",
-                    "rds:DescribeSourceRegions",
-                    "rds:ModifyDBClusterSnapshotAttribute",
-                    "rds:ModifyDBSnapshotAttribute",
-                    "rds:RestoreDBClusterFromSnapshot",
-                    "rds:RestoreDBInstanceFromDBSnapshot",
-                    "rds:RestoreDBInstanceToPointInTime",
-                    "redshift:DescribeClusters",
-                    "redshift:GetClusterCredentials",
-                    "redshift:GetClusterCredentialsWithIAM",
-                    "redshift:ListDatabases",
-                    "redshift-data:CancelStatement",
-                    "redshift-data:DescribeStatement",
-                    "redshift-data:ExecuteStatement",
-                    "redshift-data:GetStatementResult",
-                    "redshift-data:ListDatabases",
-                    "s3:AbortMultipartUpload",
-                    "s3:CreateBucket",
-                    "s3:DeleteObject",
-                    "s3:DeleteObjectTagging",
-                    "s3:DeleteObjectVersion",
-                    "s3:DeleteObjectVersionTagging",
-                    "s3:GetBucketAcl",
-                    "s3:GetBucketLocation",
-                    "s3:GetBucketObjectLockConfiguration",
-                    "s3:GetBucketOwnershipControls",
-                    "s3:GetBucketPolicy",
-                    "s3:GetBucketTagging",
-                    "s3:GetBucketVersioning",
-                    "s3:GetLifecycleConfiguration",
-                    "s3:GetObject",
-                    "s3:GetObjectAcl",
-                    "s3:GetObjectAttributes",
-                    "s3:GetObjectTagging",
-                    "s3:GetObjectTorrent",
-                    "s3:GetObjectVersion",
-                    "s3:GetObjectVersionAcl",
-                    "s3:GetObjectVersionAttributes",
-                    "s3:GetObjectVersionTagging",
-                    "s3:GetObjectVersionTorrent",
-                    "s3:HeadObject",
-                    "s3:ListAllMyBuckets",
-                    "s3:ListBucket",
-                    "s3:ListMultipartUploadParts",
-                    "s3:PutBucketAcl",
-                    "s3:PutBucketPolicy",
-                    "s3:PutBucketPublicAccessBlock",
-                    "s3:PutBucketTagging",
-                    "s3:PutObject",
-                    "s3:PutObjectAcl",
-                    "s3:PutObjectRetention",
-                    "s3:PutObjectTagging",
-                    "s3:PutObjectVersionAcl",
-                    "s3:PutObjectVersionTagging",
-                    "s3:RestoreObject",
-                    "ssm:GetCommandInvocation",
-                    "ssm:SendCommand",
-                    "ssm:UpdateInstanceInformation",
-                    "ssmmessages:*"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "ec2:AttachVolume",
-                    "ec2:AuthorizeSecurityGroupEgress",
-                    "ec2:AuthorizeSecurityGroupIngress",
-                    "ec2:CreateSnapshot",
-                    "ec2:CreateTags",
-                    "ec2:CreateVolume",
-                    "ec2:DeleteSnapshot",
-                    "ec2:DeleteVolume",
-                    "ec2:DetachVolume",
-                    "ec2:ModifySnapshotAttribute",
-                    "ec2:RunInstances",
-                    "ec2:StartInstances",
-                    "ec2:StopInstances",
-                    "ec2:TerminateInstances",
-                    "s3:DeleteObject",
-                    "s3:GetObject",
-                    "s3:PutObject"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": [
-                    "arn:aws:ec2:*:*:subnet/*",
-                    "arn:aws:ec2:*:*:key-pair/*",
-                    "arn:aws:ec2:*:*:instance/*",
-                    "arn:aws:ec2:*::snapshot/*",
-                    "arn:aws:ec2:*:*:launch-template/*",
-                    "arn:aws:ec2:*:*:volume/*",
-                    "arn:aws:ec2:*:*:security-group/*",
-                    "arn:aws:ec2:*:*:placement-group/*",
-                    "arn:aws:ec2:*:*:network-interface/*",
-                    "arn:aws:ec2:*::image/*",
-                    "arn:aws:s3:::*/*"
-                  ]
-                }
-              ],
-              "Version": "2012-10-17"
+                ],
+                "RoleName": "CohesitySourceRegistrationRole"
             },
-            "PolicyName": "source-regis-access"
-          },
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "kms:GenerateDataKey",
-                    "s3:GetBucketLocation",
-                    "s3:GetBucketNotification",
-                    "s3:GetBucketOwnershipControls",
-                    "s3:GetBucketTagging",
-                    "s3:GetBucketVersioning",
-                    "s3:GetInventoryConfiguration",
-                    "s3:GetObject",
-                    "s3:GetObjectAcl",
-                    "s3:GetObjectVersion",
-                    "s3:ListAllMyBuckets",
-                    "s3:ListBucket",
-                    "s3:PutObject",
-                    "s3:PutBucketNotification",
-                    "s3:PutInventoryConfiguration",
-                    "s3:GetObjectTagging",
-                    "s3:PutObjectTagging",
-                    "s3:GetObjectVersionTagging",
-                    "s3:PutObjectVersionTagging",
-                    "s3:PutObjectAcl",
-                    "s3:GetObjectVersionAcl",
-                    "s3:PutObjectVersionAcl"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "sqs:CreateQueue",
-                    "sqs:TagQueue",
-                    "sqs:ListQueues"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "sqs:DeleteQueue",
-                    "sqs:DeleteMessage",
-                    "sqs:GetQueueUrl",
-                    "sqs:PurgeQueue",
-                    "sqs:ReceiveMessage",
-                    "sqs:GetQueueAttributes",
-                    "sqs:SetQueueAttributes"
-                  ],
-                  "Condition": {
-                    "StringLike": {
-                      "aws:ResourceTag/UniqueTag": "cohesity_*"
-                    }
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "events:PutRule",
-                    "events:TagResource",
-                    "events:ListRules"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "events:DeleteRule",
-                    "events:PutTargets",
-                    "events:RemoveTargets"
-                  ],
-                  "Condition": {
-                    "StringLike": {
-                      "aws:ResourceTag/UniqueTag": "cohesity_*"
-                    }
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "glue:CreateJob",
-                    "glue:TagResource"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "glue:DeleteJob",
-                    "glue:StartJobRun",
-                    "glue:UpdateJob",
-                    "glue:GetJobRun"
-                  ],
-                  "Condition": {
-                    "StringLike": {
-                      "aws:ResourceTag/UniqueTag": "cohesity_*"
-                    }
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                }
-              ],
-              "Version": "2012-10-17"
-            },
-            "PolicyName": "CohesityS3Policy"
-          },
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "dynamodb:CreateTable",
-                    "dynamodb:DescribeContinuousBackups",
-                    "dynamodb:DescribeExport",
-                    "dynamodb:DescribeImport",
-                    "dynamodb:DescribeTable",
-                    "dynamodb:ExportTableToPointInTime",
-                    "dynamodb:ImportTable",
-                    "dynamodb:ListTables",
-                    "dynamodb:ListTagsOfResource",
-                    "dynamodb:TagResource",
-                    "dynamodb:UpdateContinuousBackups",
-                    "dynamodb:UpdateTable",
-                    "glue:CreateJob",
-                    "glue:TagResource"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "dynamodb:BatchWriteItem",
-                    "dynamodb:DeleteItem",
-                    "dynamodb:GetItem",
-                    "dynamodb:PutItem",
-                    "dynamodb:Query",
-                    "dynamodb:RestoreTableToPointInTime",
-                    "dynamodb:Scan",
-                    "dynamodb:UpdateItem"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "s3:CreateBucket",
-                    "s3:GetBucketLocation",
-                    "s3:PutBucketTagging"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "arn:aws:s3:::cohesity-ddb*"
-                },
-                {
-                  "Action": [
-                    "s3:DeleteBucket"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "arn:aws:s3:::cohesity-ddb*"
-                },
-                {
-                  "Action": [
-                    "s3:AbortMultipartUpload",
-                    "s3:DeleteObject",
-                    "s3:GetBucketVersioning",
-                    "s3:GetObject",
-                    "s3:GetObjectTagging",
-                    "s3:GetObjectVersion",
-                    "s3:ListBucket",
-                    "s3:ListBucketMultipartUploads",
-                    "s3:ListMultipartUploadParts",
-                    "s3:PutObject",
-                    "s3:PutObjectTagging"
-                  ],
-                  "Effect": "Allow",
-                  "Resource": [
-                    "arn:aws:s3:::cohesity-ddb*",
-                    "arn:aws:s3:::cohesity-ddb*/*"
-                  ]
-                },
-                {
-                  "Action": [
-                    "glue:DeleteJob",
-                    "glue:StartJobRun",
-                    "glue:GetJobRun"
-                  ],
-                  "Condition": {
-                    "StringLike": {
-                      "aws:ResourceTag/UniqueTag": "cohesity_*"
-                    }
-                  },
-                  "Effect": "Allow",
-                  "Resource": "*"
-                },
-                {
-                  "Action": [
-                    "logs:DescribeLogGroups"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": "arn:aws:logs:*:*:log-group*"
-                },
-                {
-                  "Action": [
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:DescribeLogStreams",
-                    "logs:GetLogEvents",
-                    "logs:PutLogEvents",
-                    "logs:PutRetentionPolicy"
-                  ],
-                  "Condition": {
-                    "Ref": "AWS::NoValue"
-                  },
-                  "Effect": "Allow",
-                  "Resource": [
-                    "arn:aws:logs:*:*:log-group:/aws-dynamodb/*",
-                    "arn:aws:logs:*:*:log-group:/aws-glue/*"
-                  ]
-                }
-              ],
-              "Version": "2012-10-17"
-            },
-            "PolicyName": "CohesityDynamoDBPolicy"
-          },
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": "rds-db:connect",
-                  "Effect": "Allow",
-                  "Resource": "arn:aws:rds-db:*:*:dbuser:*/*"
-                }
-              ],
-              "Version": "2012-10-17"
-            },
-            "PolicyName": "CohesityRDSDBConnectPolicy"
-          }
-        ],
-        "RoleName": "CohesitySourceRegistrationRole"
-      },
-      "Type": "AWS::IAM::Role"
+            "Type": "AWS::IAM::Role"
+        }
     }
-  }
 }

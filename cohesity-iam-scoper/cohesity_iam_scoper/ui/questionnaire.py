@@ -72,16 +72,24 @@ class Questionnaire:
         ec2_config = self._ask_ec2_config(selected_features)
         rds_config = self._ask_rds_config(selected_features)
         iam_config = self._ask_iam_config(selected_features)
+        kms_config = self._ask_kms_config(selected_features)
+        dynamodb_config = self._ask_dynamodb_config(selected_features)
+        redshift_config = self._ask_redshift_config(selected_features)
+        glue_config = self._ask_glue_config(selected_features)
         output_config = self._ask_output_config()
 
         config = {
-            "version": "1.0",
+            "version": "2.0",
             "aws": aws_config,
             "selected_features": selected_features,
             "s3": s3_config,
             "ec2": ec2_config,
             "rds": rds_config,
             "iam": iam_config,
+            "kms": kms_config,
+            "dynamodb": dynamodb_config,
+            "redshift": redshift_config,
+            "glue": glue_config,
             "output": output_config,
         }
 
@@ -171,12 +179,6 @@ class Questionnaire:
             default="",
         ).strip()
 
-        regions_raw = Prompt.ask(
-            "AWS regions where Cohesity operates [dim](comma-separated)[/dim]",
-            default="us-east-1",
-        )
-        regions = [r.strip() for r in regions_raw.split(",") if r.strip()]
-
         tag_key = Prompt.ask(
             "Tag key for Cohesity-managed resources",
             default="CohesityManaged",
@@ -188,7 +190,6 @@ class Questionnaire:
 
         return {
             "account_id": account_id,
-            "regions": regions,
             "tag_key": tag_key,
             "tag_value": tag_value,
         }
@@ -275,11 +276,27 @@ class Questionnaire:
             default=True,
         )
 
+        sgs_raw = Prompt.ask(
+            "Restrict security-group operations to specific SG IDs? "
+            "[dim](comma-separated, e.g. sg-0a1b2c3d, leave blank for all)[/dim]",
+            default="",
+        )
+        security_group_ids = [s.strip() for s in sgs_raw.split(",") if s.strip()]
+
+        ami_owners_raw = Prompt.ask(
+            "Restrict AMI lookups to specific owner account IDs? "
+            "[dim](comma-separated, leave blank to allow any)[/dim]",
+            default="",
+        )
+        ami_owner_account_ids = [a.strip() for a in ami_owners_raw.split(",") if a.strip()]
+
         return {
             "vpc_ids": vpc_ids,
             "subnet_ids": subnet_ids,
             "instance_types": [],
             "use_tagging_conditions": use_tagging,
+            "security_group_ids": security_group_ids,
+            "ami_owner_account_ids": ami_owner_account_ids,
         }
 
     def _ask_rds_config(self, features: list[str]) -> dict[str, Any]:
@@ -326,10 +343,98 @@ class Questionnaire:
             "use_permissions_boundary": use_boundary,
             "permissions_boundary_arn": boundary_arn,
         }
+    def _ask_kms_config(self, features: list[str]) -> dict[str, Any]:
+        """Ask for KMS-specific configuration if kms_encryption is selected."""
+        if "kms_encryption" not in features:
+            return {"key_arns": [], "enforce_via_service": True}
 
+        console.print("\n[bold]Step 7: KMS Configuration[/bold]\n")
+
+        key_arns_raw = Prompt.ask(
+            "KMS key ARNs to restrict Cohesity KMS operations "
+            "[dim](comma-separated, leave blank to allow any key)[/dim]",
+            default="",
+        )
+        key_arns = [k.strip() for k in key_arns_raw.split(",") if k.strip()]
+
+        enforce_via_service = Confirm.ask(
+            "Enforce kms:ViaService condition (restrict to EC2/RDS/S3/DynamoDB/Redshift integrations)?",
+            default=True,
+        )
+
+        return {
+            "key_arns": key_arns,
+            "enforce_via_service": enforce_via_service,
+        }
+
+    def _ask_dynamodb_config(self, features: list[str]) -> dict[str, Any]:
+        """Ask for DynamoDB-specific configuration if dynamodb_backup is selected."""
+        if "dynamodb_backup" not in features:
+            return {"table_name_pattern": "", "staging_bucket_pattern": "cohesity-ddb*"}
+
+        console.print("\n[bold]Step 8: DynamoDB Configuration[/bold]\n")
+
+        table_pat = Prompt.ask(
+            "DynamoDB table name pattern to restrict data-plane permissions "
+            "[dim](e.g. cohesity-*, leave blank for all tables)[/dim]",
+            default="",
+        ).strip()
+
+        staging_pat = Prompt.ask(
+            "S3 bucket pattern for DynamoDB export staging "
+            "[dim](separate from general archive buckets, e.g. cohesity-ddb*)[/dim]",
+            default="cohesity-ddb*",
+        ).strip()
+
+        return {
+            "table_name_pattern": table_pat,
+            "staging_bucket_pattern": staging_pat,
+        }
+
+    def _ask_redshift_config(self, features: list[str]) -> dict[str, Any]:
+        """Ask for Redshift-specific configuration if redshift_backup is selected."""
+        if "redshift_backup" not in features:
+            return {"cluster_identifiers": [], "db_users": []}
+
+        console.print("\n[bold]Step 9: Redshift Configuration[/bold]\n")
+
+        clusters_raw = Prompt.ask(
+            "Redshift cluster identifiers to restrict permissions "
+            "[dim](comma-separated, e.g. my-cluster, leave blank for all clusters)[/dim]",
+            default="",
+        )
+        cluster_ids = [c.strip() for c in clusters_raw.split(",") if c.strip()]
+
+        users_raw = Prompt.ask(
+            "Redshift database usernames Cohesity will connect as "
+            "[dim](comma-separated, leave blank for any user)[/dim]",
+            default="",
+        )
+        db_users = [u.strip() for u in users_raw.split(",") if u.strip()]
+
+        return {
+            "cluster_identifiers": cluster_ids,
+            "db_users": db_users,
+        }
+
+    def _ask_glue_config(self, features: list[str]) -> dict[str, Any]:
+        """Ask for Glue job prefix if dynamodb_backup or s3_protection is selected."""
+        glue_features = {"dynamodb_backup", "s3_protection"}
+        if not glue_features.intersection(features):
+            return {"job_name_prefix": "cohesity-"}
+
+        console.print("\n[bold]Step 10: Glue Job Configuration[/bold]\n")
+
+        job_prefix = Prompt.ask(
+            "Glue job name prefix for Cohesity-managed jobs "
+            "[dim](scopes glue:StartJobRun etc. to arn:…:job/{prefix}*)[/dim]",
+            default="cohesity-",
+        ).strip()
+
+        return {"job_name_prefix": job_prefix}
     def _ask_output_config(self) -> dict[str, Any]:
         """Ask for output format preferences."""
-        console.print("\n[bold]Step 7: Output Configuration[/bold]\n")
+        console.print("\n[bold]Step 11: Output Configuration[/bold]\n")
 
         fmt = Prompt.ask(
             "Output format",
@@ -355,7 +460,6 @@ class Questionnaire:
 
         aws = config.get("aws", {})
         console.print(f"  [cyan]Account ID:[/cyan]  {aws.get('account_id') or '(placeholder)'}")
-        console.print(f"  [cyan]Regions:[/cyan]     {', '.join(aws.get('regions', []))}")
         console.print(f"  [cyan]Tag Key:[/cyan]     {aws.get('tag_key', 'CohesityManaged')}")
 
         features = config.get("selected_features", [])

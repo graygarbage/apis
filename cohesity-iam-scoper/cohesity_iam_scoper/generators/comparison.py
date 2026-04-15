@@ -87,7 +87,9 @@ class PolicyComparator:
                 "risk_findings_eliminated": len(current_high_risk) - len(scoped_high_risk),
                 "removed_permissions": removed_perms,
                 "added_permissions": added_perms,
-                "eliminated_risk_actions": eliminated_risk,
+                # These actions are still granted but now have scoped ARNs/conditions
+                # instead of Resource: * — the risk finding was resolved by scoping, not removal.
+                "risk_scoped_actions": eliminated_risk,
                 "remaining_risk_actions": remaining_risk,
             },
         }

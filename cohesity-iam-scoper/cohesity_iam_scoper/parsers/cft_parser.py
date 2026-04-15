@@ -86,6 +86,39 @@ def _risk_level(actions: list[str], resources: list[str]) -> str:
 class CFTParser:
     """Parses CloudFormation templates to extract and assess IAM permissions."""
 
+    def extract_policy_actions(self, cft_path: str) -> dict[str, list[str]]:
+        """Extract IAM actions grouped by 'RoleName/PolicyName' from a CFT file.
+
+        Returns:
+            dict mapping "RoleName/PolicyName" -> sorted unique action list.
+            Wildcard actions (e.g. ``ssmmessages:*``) are preserved as-is.
+        """
+        with open(cft_path, "r", encoding="utf-8") as fh:
+            cft = json.load(fh)
+
+        result: dict[str, list[str]] = {}
+        for resource_body in cft.get("Resources", {}).values():
+            if resource_body.get("Type") != "AWS::IAM::Role":
+                continue
+            props = resource_body.get("Properties", {})
+            role_name = props.get("RoleName", "")
+            if not role_name:
+                continue
+            for policy in props.get("Policies", []):
+                policy_name = policy.get("PolicyName", "")
+                if not policy_name:
+                    continue
+                key = f"{role_name}/{policy_name}"
+                actions: set[str] = set()
+                for stmt in _extract_statements(policy.get("PolicyDocument", {})):
+                    if stmt.get("Effect", "Allow") != "Allow":
+                        continue
+                    for action in _normalise_actions(stmt.get("Action", [])):
+                        actions.add(action)
+                result[key] = sorted(actions)
+
+        return result
+
     def analyze(self, cft_path: str) -> dict[str, Any]:
         """Parse a CFT file and return a comprehensive permission analysis.
 

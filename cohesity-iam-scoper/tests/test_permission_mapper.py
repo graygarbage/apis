@@ -56,3 +56,57 @@ class TestPermissionMapper:
     def test_features_for_environment(self):
         features = self.mapper.features_for_environment("kAWS")
         assert "ec2_vm_backup" in features or "source_registration_aws" in features
+
+    # --- Phase 5 additions ---
+
+    def test_iam_create_policy_absent(self):
+        # Use the raw JSON required list — get_required_permissions() may fall back to
+        # CFT-derived actions (from cft.json) which still carries the original permissions.
+        # Items 5/6 target the aws_permission_map.json maintenance list specifically.
+        feature = self.mapper.get_feature("iam_role_management")
+        required = feature.get("iam_permissions", {}).get("required", [])
+        assert "iam:CreatePolicy" not in required, (
+            "iam:CreatePolicy must be permanently removed from iam_role_management "
+            "(privilege-escalation risk — see plan Item 5 / Flag 2)"
+        )
+
+    def test_iam_update_user_absent(self):
+        # Use the raw JSON required list — same reasoning as test_iam_create_policy_absent.
+        feature = self.mapper.get_feature("iam_role_management")
+        required = feature.get("iam_permissions", {}).get("required", [])
+        assert "iam:UpdateUser" not in required, (
+            "iam:UpdateUser must be removed from iam_role_management "
+            "(no legitimate use for a backup product — see plan Item 6)"
+        )
+
+    def test_glue_delete_job_has_resource_tag_condition(self):
+        scoping = self.mapper.get_resource_scoping("dynamodb_backup")
+        entry = scoping.get("glue:DeleteJob")
+        assert entry is not None, "glue:DeleteJob must have a resource_scoping entry"
+        assert "aws:ResourceTag/{tag_key}" in entry.get("condition_keys", []), (
+            "glue:DeleteJob must carry aws:ResourceTag/{tag_key} condition "
+            "(see plan Item 1 / Remediation 1A)"
+        )
+
+    def test_sqs_delete_queue_has_resource_tag_condition(self):
+        scoping = self.mapper.get_resource_scoping("s3_protection")
+        entry = scoping.get("sqs:DeleteQueue")
+        assert entry is not None, "sqs:DeleteQueue must have a resource_scoping entry"
+        assert "aws:ResourceTag/{tag_key}" in entry.get("condition_keys", []), (
+            "sqs:DeleteQueue must carry aws:ResourceTag/{tag_key} condition "
+            "(see plan Item 2 / Remediation 1B)"
+        )
+
+    def test_logs_put_log_events_has_scoped_resource(self):
+        scoping = self.mapper.get_resource_scoping("dynamodb_backup")
+        entry = scoping.get("logs:PutLogEvents")
+        assert entry is not None, "logs:PutLogEvents must have a resource_scoping entry"
+        resource = entry.get("resource", "*")
+        resources = resource if isinstance(resource, list) else [resource]
+        assert any("log-group" in r for r in resources), (
+            "logs:PutLogEvents must be scoped to specific log-group ARNs, not '*' "
+            "(see plan Item 4 / Remediation 1D)"
+        )
+        assert not (len(resources) == 1 and resources[0] == "*"), (
+            "logs:PutLogEvents resource must not be bare '*'"
+        )

@@ -214,15 +214,16 @@ class OutputFormatter:
             f"[bold green]{wpct:.1f}%[/bold green]"
         )
 
-        eliminated = delta.get("eliminated_risk_actions", [])
-        if eliminated:
+        scoped_risk = delta.get("risk_scoped_actions", [])
+        if scoped_risk:
             console.print(
-                f"  [green]✅[/green] {len(eliminated)} high-risk actions eliminated:"
+                f"  [green]✅[/green] {len(scoped_risk)} high-risk actions scoped "
+                "(still granted, but no longer use [bold]Resource: *[/bold]):"
             )
-            for action in eliminated[:8]:
+            for action in scoped_risk[:8]:
                 console.print(f"    [dim]•[/dim] {action}")
-            if len(eliminated) > 8:
-                console.print(f"    [dim]... and {len(eliminated) - 8} more[/dim]")
+            if len(scoped_risk) > 8:
+                console.print(f"    [dim]... and {len(scoped_risk) - 8} more[/dim]")
 
         remaining = delta.get("remaining_risk_actions", [])
         if remaining:
