@@ -1,0 +1,33 @@
+{
+  "CohesityArchiveRole/external-target-regis-access": [
+    "s3_archive",
+    "glacier_archive",
+    "kms_encryption"
+  ],
+  "CohesityBackupS3StagingRole/BackupS3StagingPolicy": [
+    "rds_staging_s3"
+  ],
+  "CohesityInstanceRole/assume-role": [
+    "instance_role"
+  ],
+  "CohesitySourceRegistrationRole/source-regis-access": [
+    "source_registration_aws",
+    "ec2_vm_backup",
+    "ebs_direct_api",
+    "ec2_vm_restore",
+    "rds_backup",
+    "rds_restore",
+    "redshift_backup",
+    "ssm_operations",
+    "iam_role_management"
+  ],
+  "CohesitySourceRegistrationRole/CohesityS3Policy": [
+    "s3_protection"
+  ],
+  "CohesitySourceRegistrationRole/CohesityDynamoDBPolicy": [
+    "dynamodb_backup"
+  ],
+  "CohesitySourceRegistrationRole/CohesityRDSDBConnectPolicy": [
+    "rds_db_connect"
+  ]
+}

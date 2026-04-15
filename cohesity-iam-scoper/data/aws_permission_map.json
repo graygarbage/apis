@@ -10,7 +10,10 @@
       "GET /v2/data-protect/sources/{sourceId}/objects"
     ],
     "description": "Register an AWS account as a Cohesity protection source to discover EC2, RDS, S3, DynamoDB, and Redshift resources.",
-    "environment_types": ["kAWS", "kAWSNative"],
+    "environment_types": [
+      "kAWS",
+      "kAWSNative"
+    ],
     "iam_permissions": {
       "required": [
         "ec2:DescribeAvailabilityZones",
@@ -74,7 +77,6 @@
     },
     "risk_level": "LOW"
   },
-
   "ec2_vm_backup": {
     "feature_name": "EC2 VM Backup",
     "cohesity_apis": [
@@ -84,14 +86,21 @@
       "POST /v2/data-protect/protection-groups/{id}/runs/actions"
     ],
     "description": "Back up EC2 instances and EBS volumes using native snapshots.",
-    "environment_types": ["kAWS", "kAWSNative", "kAWSSnapshotManager"],
+    "environment_types": [
+      "kAWS",
+      "kAWSNative",
+      "kAWSSnapshotManager"
+    ],
     "iam_permissions": {
       "required": [
+        "ec2:AttachVolume",
         "ec2:CopySnapshot",
         "ec2:CreateSnapshot",
         "ec2:CreateTags",
+        "ec2:CreateVolume",
         "ec2:DeleteSnapshot",
         "ec2:DeleteTags",
+        "ec2:DeleteVolume",
         "ec2:DescribeAvailabilityZones",
         "ec2:DescribeImages",
         "ec2:DescribeInstanceAttribute",
@@ -100,11 +109,17 @@
         "ec2:DescribeRegions",
         "ec2:DescribeSnapshotAttribute",
         "ec2:DescribeSnapshots",
+        "ec2:DescribeSubnets",
         "ec2:DescribeTags",
         "ec2:DescribeVolumeAttribute",
         "ec2:DescribeVolumes",
         "ec2:DescribeVolumeStatus",
-        "ec2:ModifySnapshotAttribute"
+        "ec2:DetachVolume",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifySnapshotAttribute",
+        "ec2:RunInstances",
+        "ec2:StartInstances",
+        "ec2:TerminateInstances"
       ],
       "resource_scoping": {
         "ec2:CreateSnapshot": {
@@ -112,7 +127,7 @@
             "arn:aws:ec2:{region}:{account}:volume/*",
             "arn:aws:ec2:{region}::snapshot/*"
           ],
-          "condition_keys": ["ec2:ResourceTag/{tag_key}"]
+          "condition_keys": []
         },
         "ec2:CopySnapshot": {
           "resource": "arn:aws:ec2:{region}::snapshot/*",
@@ -120,20 +135,95 @@
         },
         "ec2:DeleteSnapshot": {
           "resource": "arn:aws:ec2:{region}::snapshot/*",
-          "condition_keys": ["ec2:ResourceTag/{tag_key}"]
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
         },
         "ec2:CreateTags": {
           "resource": [
             "arn:aws:ec2:{region}::snapshot/*",
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:instance/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:CreateVolume": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}::snapshot/*"
+          ],
+          "condition_keys": [
+            "aws:RequestTag/{tag_key}"
+          ]
+        },
+        "ec2:AttachVolume": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:instance/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:DetachVolume": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:instance/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:DeleteVolume": {
+          "resource": "arn:aws:ec2:{region}:{account}:volume/*",
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
+        },
+        "ec2:RunInstances": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:security-group/*",
+            "arn:aws:ec2:{region}:{account}:subnet/*",
+            "arn:aws:ec2:{region}::image/*"
+          ],
+          "condition_keys": [
+            "aws:RequestTag/{tag_key}"
+          ]
+        },
+        "ec2:StartInstances": {
+          "resource": "arn:aws:ec2:{region}:{account}:instance/*",
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
+        },
+        "ec2:TerminateInstances": {
+          "resource": "arn:aws:ec2:{region}:{account}:instance/*",
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
+        },
+        "ec2:DeleteTags": {
+          "resource": [
+            "arn:aws:ec2:{region}::snapshot/*",
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:instance/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:ModifyInstanceAttribute": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:instance/*",
             "arn:aws:ec2:{region}:{account}:volume/*"
           ],
+          "condition_keys": []
+        },
+        "ec2:ModifySnapshotAttribute": {
+          "resource": "arn:aws:ec2:{region}::snapshot/*",
           "condition_keys": []
         }
       }
     },
     "risk_level": "MEDIUM"
   },
-
   "ebs_direct_api": {
     "feature_name": "EBS Direct API (Block-Level Backup)",
     "cohesity_apis": [
@@ -141,7 +231,10 @@
       "GET /v2/data-protect/protection-groups/{id}/runs"
     ],
     "description": "Use EBS Direct APIs for incremental block-level EC2 volume backups without creating full snapshots.",
-    "environment_types": ["kAWS", "kAWSNative"],
+    "environment_types": [
+      "kAWS",
+      "kAWSNative"
+    ],
     "iam_permissions": {
       "required": [
         "ebs:CompleteSnapshot",
@@ -154,17 +247,24 @@
       "resource_scoping": {
         "ebs:StartSnapshot": {
           "resource": "arn:aws:ec2:{region}::snapshot/*",
-          "condition_keys": ["aws:RequestTag/{tag_key}"]
+          "condition_keys": [
+            "aws:RequestTag/{tag_key}"
+          ]
         },
         "ebs:PutSnapshotBlock": {
           "resource": "arn:aws:ec2:{region}::snapshot/*",
-          "condition_keys": ["aws:ResourceTag/{tag_key}"]
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "ebs:CompleteSnapshot": {
+          "resource": "arn:aws:ec2:{region}::snapshot/*",
+          "condition_keys": []
         }
       }
     },
     "risk_level": "MEDIUM"
   },
-
   "ec2_vm_restore": {
     "feature_name": "EC2 VM Restore / CloudSpin",
     "cohesity_apis": [
@@ -173,7 +273,10 @@
       "POST /v2/data-protect/recoveries/{id}/cancel"
     ],
     "description": "Restore EC2 instances and EBS volumes from Cohesity snapshots or cloud-spin to AWS.",
-    "environment_types": ["kAWS", "kAWSNative"],
+    "environment_types": [
+      "kAWS",
+      "kAWSNative"
+    ],
     "iam_permissions": {
       "required": [
         "ec2:AllocateAddress",
@@ -258,27 +361,42 @@
             "arn:aws:ec2:{region}::image/*",
             "arn:aws:ec2:{region}::snapshot/*"
           ],
-          "condition_keys": ["aws:RequestTag/{tag_key}"]
+          "condition_keys": [
+            "aws:RequestTag/{tag_key}"
+          ]
         },
         "ec2:TerminateInstances": {
           "resource": "arn:aws:ec2:{region}:{account}:instance/*",
-          "condition_keys": ["ec2:ResourceTag/{tag_key}"]
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
         },
         "ec2:StartInstances": {
           "resource": "arn:aws:ec2:{region}:{account}:instance/*",
-          "condition_keys": ["ec2:ResourceTag/{tag_key}"]
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
         },
         "ec2:StopInstances": {
           "resource": "arn:aws:ec2:{region}:{account}:instance/*",
-          "condition_keys": ["ec2:ResourceTag/{tag_key}"]
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
         },
         "ec2:CreateVolume": {
-          "resource": "arn:aws:ec2:{region}:{account}:volume/*",
-          "condition_keys": ["aws:RequestTag/{tag_key}"]
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}::snapshot/*"
+          ],
+          "condition_keys": [
+            "aws:RequestTag/{tag_key}"
+          ]
         },
         "ec2:DeleteVolume": {
           "resource": "arn:aws:ec2:{region}:{account}:volume/*",
-          "condition_keys": ["ec2:ResourceTag/{tag_key}"]
+          "condition_keys": [
+            "ec2:ResourceTag/{tag_key}"
+          ]
         },
         "ec2:AttachVolume": {
           "resource": [
@@ -293,12 +411,103 @@
             "arn:aws:ec2:{region}:{account}:instance/*"
           ],
           "condition_keys": []
+        },
+        "ec2:AuthorizeSecurityGroupIngress": {
+          "resource": "arn:aws:ec2:{region}:{account}:security-group/*",
+          "condition_keys": []
+        },
+        "ec2:AuthorizeSecurityGroupEgress": {
+          "resource": "arn:aws:ec2:{region}:{account}:security-group/*",
+          "condition_keys": []
+        },
+        "ec2:CreateSecurityGroup": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:security-group/*",
+            "arn:aws:ec2:{region}:{account}:vpc/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:ModifyInstanceAttribute": {
+          "resource": "arn:aws:ec2:{region}:{account}:instance/*",
+          "condition_keys": []
+        },
+        "ec2:CreateImage": {
+          "resource": "arn:aws:ec2:{region}:{account}:instance/*",
+          "condition_keys": []
+        },
+        "ec2:CreateInstanceExportTask": {
+          "resource": "arn:aws:ec2:{region}:{account}:instance/*",
+          "condition_keys": []
+        },
+        "ec2:AttachNetworkInterface": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:subnet/*",
+            "arn:aws:ec2:{region}:{account}:security-group/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:DetachNetworkInterface": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:subnet/*",
+            "arn:aws:ec2:{region}:{account}:security-group/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:DeleteNetworkInterface": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:subnet/*",
+            "arn:aws:ec2:{region}:{account}:security-group/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:CreateNetworkInterface": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:subnet/*",
+            "arn:aws:ec2:{region}:{account}:security-group/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:ModifyNetworkInterfaceAttribute": {
+          "resource": [
+            "arn:aws:ec2:{region}:{account}:network-interface/*",
+            "arn:aws:ec2:{region}:{account}:instance/*",
+            "arn:aws:ec2:{region}:{account}:subnet/*",
+            "arn:aws:ec2:{region}:{account}:security-group/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:DeleteTags": {
+          "resource": [
+            "arn:aws:ec2:{region}::snapshot/*",
+            "arn:aws:ec2:{region}:{account}:volume/*",
+            "arn:aws:ec2:{region}:{account}:instance/*"
+          ],
+          "condition_keys": []
+        },
+        "ec2:ModifySnapshotAttribute": {
+          "resource": "arn:aws:ec2:{region}::snapshot/*",
+          "condition_keys": []
+        },
+        "ec2:ModifyVolume": {
+          "resource": "arn:aws:ec2:{region}:{account}:volume/*",
+          "condition_keys": []
+        },
+        "ec2:ModifyVolumeAttribute": {
+          "resource": "arn:aws:ec2:{region}:{account}:volume/*",
+          "condition_keys": []
         }
       }
     },
     "risk_level": "HIGH"
   },
-
   "rds_backup": {
     "feature_name": "RDS Backup",
     "cohesity_apis": [
@@ -361,12 +570,41 @@
         "rds:DeleteDBClusterSnapshot": {
           "resource": "arn:aws:rds:{region}:{account}:cluster-snapshot:{snapshot_prefix}*",
           "condition_keys": []
+        },
+        "rds:AddTagsToResource": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:snapshot:{snapshot_prefix}*",
+            "arn:aws:rds:{region}:{account}:cluster-snapshot:{snapshot_prefix}*",
+            "arn:aws:rds:{region}:{account}:db:*"
+          ],
+          "condition_keys": []
+        },
+        "rds:CopyDBSnapshot": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:snapshot:{snapshot_prefix}*",
+            "arn:aws:rds:{region}:{account}:db:*"
+          ],
+          "condition_keys": []
+        },
+        "rds:CopyDBClusterSnapshot": {
+          "resource": "arn:aws:rds:{region}:{account}:cluster-snapshot:{snapshot_prefix}*",
+          "condition_keys": []
+        },
+        "rds:ModifyDBSnapshotAttribute": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:snapshot:{snapshot_prefix}*",
+            "arn:aws:rds:{region}:{account}:db:*"
+          ],
+          "condition_keys": []
+        },
+        "rds:ModifyDBClusterSnapshotAttribute": {
+          "resource": "arn:aws:rds:{region}:{account}:cluster-snapshot:{snapshot_prefix}*",
+          "condition_keys": []
         }
       }
     },
     "risk_level": "MEDIUM"
   },
-
   "rds_restore": {
     "feature_name": "RDS Restore",
     "cohesity_apis": [
@@ -410,19 +648,48 @@
             "arn:aws:rds:{region}:{account}:cluster-snapshot:{snapshot_prefix}*"
           ],
           "condition_keys": []
+        },
+        "rds:AddTagsToResource": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:snapshot:{snapshot_prefix}*",
+            "arn:aws:rds:{region}:{account}:cluster-snapshot:{snapshot_prefix}*",
+            "arn:aws:rds:{region}:{account}:db:*"
+          ],
+          "condition_keys": []
+        },
+        "rds:CreateDBInstance": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:db:*",
+            "arn:aws:rds:{region}:{account}:og:*",
+            "arn:aws:rds:{region}:{account}:pg:*",
+            "arn:aws:rds:{region}:{account}:subgrp:*"
+          ],
+          "condition_keys": []
+        },
+        "rds:RestoreDBInstanceToPointInTime": {
+          "resource": [
+            "arn:aws:rds:{region}:{account}:db:*",
+            "arn:aws:rds:{region}:{account}:og:*",
+            "arn:aws:rds:{region}:{account}:pg:*",
+            "arn:aws:rds:{region}:{account}:subgrp:*"
+          ],
+          "condition_keys": []
         }
       }
     },
     "risk_level": "HIGH"
   },
-
   "rds_db_connect": {
     "feature_name": "RDS DB Connect (IAM Auth)",
     "cohesity_apis": [
       "POST /v2/data-protect/protection-groups"
     ],
     "description": "Connect to RDS databases using IAM authentication for application-aware backups.",
-    "environment_types": ["kAWSRDSPostgresDB", "kAWSRDSMSSQL", "kAWSMySQL"],
+    "environment_types": [
+      "kAWSRDSPostgresDB",
+      "kAWSRDSMSSQL",
+      "kAWSMySQL"
+    ],
     "iam_permissions": {
       "required": [
         "rds-db:connect"
@@ -436,7 +703,6 @@
     },
     "risk_level": "MEDIUM"
   },
-
   "rds_staging_s3": {
     "feature_name": "RDS Backup S3 Staging",
     "cohesity_apis": [
@@ -444,7 +710,10 @@
       "GET /v2/data-protect/protection-groups/{id}/runs"
     ],
     "description": "Stage RDS backup data through S3 during cross-region or cross-account restore operations.",
-    "environment_types": ["kRDSSnapshotManager", "kAuroraSnapshotManager"],
+    "environment_types": [
+      "kRDSSnapshotManager",
+      "kAuroraSnapshotManager"
+    ],
     "iam_permissions": {
       "required": [
         "s3:AbortMultipartUpload",
@@ -462,20 +731,49 @@
         "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
       ],
       "resource_scoping": {
+        "s3:AbortMultipartUpload": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:DeleteObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:GetBucketLocation": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
         "s3:GetObject": {
-          "resource": "arn:aws:s3:::*",
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:GetObjectAcl": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:GetObjectAttributes": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:ListBucket": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:ListMultipartUploadParts": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
           "condition_keys": []
         },
         "s3:PutObject": {
-          "resource": "arn:aws:s3:::*",
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
           "condition_keys": []
         }
       },
-      "trust_policy_principals": ["rds.amazonaws.com"]
+      "trust_policy_principals": [
+        "rds.amazonaws.com"
+      ]
     },
     "risk_level": "MEDIUM"
   },
-
   "redshift_backup": {
     "feature_name": "Redshift Backup",
     "cohesity_apis": [
@@ -483,7 +781,9 @@
       "GET /v2/data-protect/protection-groups/{id}/runs"
     ],
     "description": "Back up Amazon Redshift clusters and data.",
-    "environment_types": ["kAWSRedshift"],
+    "environment_types": [
+      "kAWSRedshift"
+    ],
     "iam_permissions": {
       "required": [
         "redshift:DescribeClusters",
@@ -504,13 +804,18 @@
         "redshift-data:ExecuteStatement": {
           "resource": "arn:aws:redshift:{region}:{account}:cluster:*",
           "condition_keys": []
+        },
+        "redshift:GetClusterCredentialsWithIAM": {
+          "resource": "arn:aws:redshift:{region}:{account}:dbname:*/*",
+          "condition_keys": []
         }
       },
-      "trust_policy_principals": ["redshift.amazonaws.com"]
+      "trust_policy_principals": [
+        "redshift.amazonaws.com"
+      ]
     },
     "risk_level": "MEDIUM"
   },
-
   "dynamodb_backup": {
     "feature_name": "DynamoDB Backup",
     "cohesity_apis": [
@@ -518,7 +823,9 @@
       "GET /v2/data-protect/protection-groups/{id}/runs"
     ],
     "description": "Back up DynamoDB tables using on-demand backups or point-in-time recovery exports.",
-    "environment_types": ["kAwsDynamoDB"],
+    "environment_types": [
+      "kAwsDynamoDB"
+    ],
     "iam_permissions": {
       "required": [
         "dynamodb:BatchWriteItem",
@@ -574,6 +881,78 @@
           "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
           "condition_keys": []
         },
+        "dynamodb:BatchWriteItem": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:CreateTable": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:DeleteItem": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:DescribeContinuousBackups": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:DescribeExport": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:DescribeImport": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:DescribeTable": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:GetItem": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:ImportTable": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:ListTagsOfResource": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:PutItem": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:Query": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:RestoreTableToPointInTime": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:Scan": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:TagResource": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:UpdateContinuousBackups": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:UpdateItem": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
+        "dynamodb:UpdateTable": {
+          "resource": "arn:aws:dynamodb:{region}:{account}:table/*",
+          "condition_keys": []
+        },
         "s3:CreateBucket": {
           "resource": "arn:aws:s3:::cohesity-ddb*",
           "condition_keys": []
@@ -605,13 +984,87 @@
         },
         "glue:DeleteJob": {
           "resource": "*",
-          "condition_keys": ["aws:ResourceTag/UniqueTag"]
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:StartJobRun": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:UpdateJob": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:GetJobRun": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:CreateJob": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "logs:CreateLogStream": {
+          "resource": [
+            "arn:aws:logs:{region}:{account}:log-group:/aws-dynamodb/*:*",
+            "arn:aws:logs:{region}:{account}:log-group:/aws-glue/*:*"
+          ],
+          "condition_keys": []
+        },
+        "logs:DescribeLogStreams": {
+          "resource": [
+            "arn:aws:logs:{region}:{account}:log-group:/aws-dynamodb/*:*",
+            "arn:aws:logs:{region}:{account}:log-group:/aws-glue/*:*"
+          ],
+          "condition_keys": []
+        },
+        "logs:GetLogEvents": {
+          "resource": [
+            "arn:aws:logs:{region}:{account}:log-group:/aws-dynamodb/*:*",
+            "arn:aws:logs:{region}:{account}:log-group:/aws-glue/*:*"
+          ],
+          "condition_keys": []
+        },
+        "logs:PutLogEvents": {
+          "resource": [
+            "arn:aws:logs:{region}:{account}:log-group:/aws-dynamodb/*:*",
+            "arn:aws:logs:{region}:{account}:log-group:/aws-glue/*:*"
+          ],
+          "condition_keys": []
+        },
+        "logs:PutRetentionPolicy": {
+          "resource": [
+            "arn:aws:logs:{region}:{account}:log-group:/aws-dynamodb/*:*",
+            "arn:aws:logs:{region}:{account}:log-group:/aws-glue/*:*"
+          ],
+          "condition_keys": []
+        },
+        "logs:DescribeLogGroups": {
+          "resource": "arn:aws:logs:{region}:{account}:log-group:*",
+          "condition_keys": []
+        },
+        "s3:PutBucketTagging": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:GetObjectTagging": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:PutObjectTagging": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
         }
       }
     },
     "risk_level": "LOW"
   },
-
   "s3_protection": {
     "feature_name": "S3 Protection (S3 as Source)",
     "cohesity_apis": [
@@ -620,7 +1073,9 @@
       "POST /v2/data-protect/recoveries"
     ],
     "description": "Protect S3 buckets as a data source with incremental backups using S3 event notifications.",
-    "environment_types": ["kAwsS3"],
+    "environment_types": [
+      "kAwsS3"
+    ],
     "iam_permissions": {
       "required": [
         "events:DeleteRule",
@@ -683,26 +1138,199 @@
       "resource_scoping": {
         "sqs:DeleteQueue": {
           "resource": "*",
-          "condition_keys": ["aws:ResourceTag/UniqueTag"]
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
         },
         "sqs:DeleteMessage": {
           "resource": "*",
-          "condition_keys": ["aws:ResourceTag/UniqueTag"]
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "sqs:GetQueueUrl": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "sqs:PurgeQueue": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "sqs:ReceiveMessage": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "sqs:GetQueueAttributes": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "sqs:SetQueueAttributes": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "sqs:CreateQueue": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "sqs:TagQueue": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "sqs:ListQueues": {
+          "resource": "*",
+          "condition_keys": []
         },
         "events:DeleteRule": {
           "resource": "*",
-          "condition_keys": ["aws:ResourceTag/UniqueTag"]
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "events:PutTargets": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "events:RemoveTargets": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "events:PutRule": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "events:TagResource": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "events:ListRules": {
+          "resource": "*",
+          "condition_keys": []
         },
         "glue:DeleteJob": {
           "resource": "*",
-          "condition_keys": ["aws:ResourceTag/UniqueTag"]
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:StartJobRun": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:UpdateJob": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:GetJobRun": {
+          "resource": "*",
+          "condition_keys": [
+            "aws:ResourceTag/{tag_key}"
+          ]
+        },
+        "glue:CreateJob": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutBucketPolicy": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutBucketNotification": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutInventoryConfiguration": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetBucketNotification": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetInventoryConfiguration": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetBucketOwnershipControls": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:DeleteObjectTagging": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:DeleteObjectVersion": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:DeleteObjectVersionTagging": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetObjectTorrent": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetObjectVersionAcl": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetObjectVersionTagging": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:GetObjectVersionTorrent": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutObjectAcl": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutObjectVersionAcl": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutObjectVersionTagging": {
+          "resource": "*",
+          "condition_keys": []
+        },
+        "s3:PutBucketAcl": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:PutBucketTagging": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:PutObjectTagging": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
         }
       },
-      "trust_policy_principals": ["glue.amazonaws.com"]
+      "trust_policy_principals": [
+        "glue.amazonaws.com"
+      ]
     },
     "risk_level": "MEDIUM"
   },
-
   "s3_archive": {
     "feature_name": "S3 Archive (External Target)",
     "cohesity_apis": [
@@ -712,7 +1340,9 @@
       "DELETE /v2/data-protect/external-targets/{id}"
     ],
     "description": "Archive Cohesity backups to Amazon S3 for long-term retention.",
-    "environment_types": ["kAwsS3"],
+    "environment_types": [
+      "kAwsS3"
+    ],
     "iam_permissions": {
       "required": [
         "kms:Decrypt",
@@ -740,11 +1370,7 @@
         "s3:RestoreObject"
       ],
       "resource_scoping": {
-        "s3:GetObject": {
-          "resource": "arn:aws:s3:::{bucket_pattern}/*",
-          "condition_keys": []
-        },
-        "s3:PutObject": {
+        "s3:AbortMultipartUpload": {
           "resource": "arn:aws:s3:::{bucket_pattern}/*",
           "condition_keys": []
         },
@@ -752,15 +1378,66 @@
           "resource": "arn:aws:s3:::{bucket_pattern}/*",
           "condition_keys": []
         },
+        "s3:DeleteObjectVersion": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:GetIntelligentTieringConfiguration": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:GetObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:GetObjectAttributes": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:GetObjectVersionAttributes": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:HeadObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
         "s3:ListBucket": {
           "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:ListBucketMultipartUploads": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:ListBucketVersions": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:ListMultipartUploadParts": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:PutBucketPublicAccessBlock": {
+          "resource": "arn:aws:s3:::{bucket_pattern}",
+          "condition_keys": []
+        },
+        "s3:PutObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:PutObjectRetention": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
+          "condition_keys": []
+        },
+        "s3:RestoreObject": {
+          "resource": "arn:aws:s3:::{bucket_pattern}/*",
           "condition_keys": []
         }
       }
     },
     "risk_level": "MEDIUM"
   },
-
   "glacier_archive": {
     "feature_name": "Glacier Archive",
     "cohesity_apis": [
@@ -768,7 +1445,9 @@
       "GET /v2/data-protect/external-targets"
     ],
     "description": "Archive Cohesity backups to Amazon S3 Glacier or Glacier Deep Archive for lowest-cost retention.",
-    "environment_types": ["kAwsS3"],
+    "environment_types": [
+      "kAwsS3"
+    ],
     "iam_permissions": {
       "required": [
         "glacier:AbortMultipartUpload",
@@ -784,11 +1463,43 @@
         "glacier:UploadMultipartPart"
       ],
       "resource_scoping": {
+        "glacier:AbortMultipartUpload": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
+        "glacier:CompleteMultipartUpload": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
         "glacier:DeleteArchive": {
           "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
           "condition_keys": []
         },
+        "glacier:DescribeJob": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
+        "glacier:DescribeVault": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
+        "glacier:GetJobOutput": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
+        "glacier:InitiateJob": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
         "glacier:InitiateMultipartUpload": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
+        "glacier:ListParts": {
+          "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
+          "condition_keys": []
+        },
+        "glacier:UploadMultipartPart": {
           "resource": "arn:aws:glacier:{region}:{account}:vaults/*",
           "condition_keys": []
         }
@@ -796,7 +1507,6 @@
     },
     "risk_level": "LOW"
   },
-
   "iam_role_management": {
     "feature_name": "IAM Role Management",
     "cohesity_apis": [
@@ -804,12 +1514,13 @@
       "POST /v2/data-protect/external-targets"
     ],
     "description": "Create and manage IAM roles required for cross-account access, archive targets, and CloudSpin.",
-    "environment_types": ["kAWS"],
+    "environment_types": [
+      "kAWS"
+    ],
     "iam_permissions": {
       "required": [
         "iam:AddRoleToInstanceProfile",
         "iam:AttachRolePolicy",
-        "iam:CreatePolicy",
         "iam:CreateRole",
         "iam:DeleteRole",
         "iam:DeleteRolePolicy",
@@ -829,13 +1540,14 @@
         "iam:PutRolePolicy",
         "iam:TagRole",
         "iam:UntagRole",
-        "iam:UpdateRole",
-        "iam:UpdateUser"
+        "iam:UpdateRole"
       ],
       "resource_scoping": {
         "iam:CreateRole": {
           "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
-          "condition_keys": ["iam:PermissionsBoundary"]
+          "condition_keys": [
+            "iam:PermissionsBoundary"
+          ]
         },
         "iam:DeleteRole": {
           "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
@@ -851,13 +1563,34 @@
         },
         "iam:PassRole": {
           "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
-          "condition_keys": ["iam:PassedToService"]
+          "condition_keys": [
+            "iam:PassedToService"
+          ]
+        },
+        "iam:AddRoleToInstanceProfile": {
+          "resource": "arn:aws:iam::{account}:instance-profile/{role_prefix}*",
+          "condition_keys": []
+        },
+        "iam:DeleteRolePolicy": {
+          "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
+          "condition_keys": []
+        },
+        "iam:TagRole": {
+          "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
+          "condition_keys": []
+        },
+        "iam:UntagRole": {
+          "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
+          "condition_keys": []
+        },
+        "iam:UpdateRole": {
+          "resource": "arn:aws:iam::{account}:role/{role_prefix}*",
+          "condition_keys": []
         }
       }
     },
     "risk_level": "CRITICAL"
   },
-
   "ssm_operations": {
     "feature_name": "SSM Operations (App-Consistent Backups)",
     "cohesity_apis": [
@@ -865,7 +1598,10 @@
       "PUT /v2/data-protect/protection-groups/{id}"
     ],
     "description": "Use AWS Systems Manager to quiesce applications for app-consistent EC2 snapshots.",
-    "environment_types": ["kAWS", "kAWSNative"],
+    "environment_types": [
+      "kAWS",
+      "kAWSNative"
+    ],
     "iam_permissions": {
       "required": [
         "ssm:GetCommandInvocation",
@@ -883,13 +1619,14 @@
             "arn:aws:ssm:{region}::document/AWS-RunPowerShellScript",
             "arn:aws:ec2:{region}:{account}:instance/*"
           ],
-          "condition_keys": ["ssm:resourceTag/{tag_key}"]
+          "condition_keys": [
+            "ssm:resourceTag/{tag_key}"
+          ]
         }
       }
     },
     "risk_level": "MEDIUM"
   },
-
   "kms_encryption": {
     "feature_name": "KMS Encryption",
     "cohesity_apis": [
@@ -897,7 +1634,10 @@
       "POST /v2/data-protect/protection-groups"
     ],
     "description": "Use AWS KMS customer-managed keys (CMKs) to encrypt Cohesity backups and archives.",
-    "environment_types": ["kAWS", "kAwsS3"],
+    "environment_types": [
+      "kAWS",
+      "kAwsS3"
+    ],
     "iam_permissions": {
       "required": [
         "kms:CreateGrant",
@@ -914,30 +1654,51 @@
       "resource_scoping": {
         "kms:GenerateDataKey": {
           "resource": "{kms_key_arn}",
-          "condition_keys": ["kms:ViaService"]
+          "condition_keys": [
+            "kms:ViaService"
+          ]
         },
         "kms:Decrypt": {
           "resource": "{kms_key_arn}",
-          "condition_keys": ["kms:ViaService"]
+          "condition_keys": [
+            "kms:ViaService"
+          ]
         },
         "kms:Encrypt": {
           "resource": "{kms_key_arn}",
-          "condition_keys": ["kms:ViaService"]
+          "condition_keys": [
+            "kms:ViaService"
+          ]
         },
         "kms:CreateGrant": {
           "resource": "{kms_key_arn}",
-          "condition_keys": ["kms:GrantIsForAWSResource"]
+          "condition_keys": [
+            "kms:GrantIsForAWSResource"
+          ]
+        },
+        "kms:ReEncryptFrom": {
+          "resource": "{kms_key_arn}",
+          "condition_keys": [
+            "kms:ViaService"
+          ]
+        },
+        "kms:ReEncryptTo": {
+          "resource": "{kms_key_arn}",
+          "condition_keys": [
+            "kms:ViaService"
+          ]
         }
       }
     },
     "risk_level": "LOW"
   },
-
   "instance_role": {
     "feature_name": "Cohesity Instance Role",
     "cohesity_apis": [],
     "description": "IAM role attached to Cohesity EC2 instances for cross-account role assumption.",
-    "environment_types": ["kAWS"],
+    "environment_types": [
+      "kAWS"
+    ],
     "iam_permissions": {
       "required": [
         "sts:AssumeRole"
@@ -948,11 +1709,12 @@
           "condition_keys": []
         }
       },
-      "trust_policy_principals": ["ec2.amazonaws.com"]
+      "trust_policy_principals": [
+        "ec2.amazonaws.com"
+      ]
     },
     "risk_level": "HIGH"
   },
-
   "cloudformation_management": {
     "feature_name": "CloudFormation Stack Management",
     "cohesity_apis": [
@@ -960,7 +1722,9 @@
       "POST /v2/data-protect/external-targets"
     ],
     "description": "Manage CloudFormation stacks used to deploy Cohesity roles and resources in AWS.",
-    "environment_types": ["kAWS"],
+    "environment_types": [
+      "kAWS"
+    ],
     "iam_permissions": {
       "required": [
         "cloudformation:CreateChangeSet",
@@ -987,6 +1751,18 @@
           "condition_keys": []
         },
         "cloudformation:DeleteStack": {
+          "resource": "arn:aws:cloudformation:{region}:{account}:stack/{role_prefix}*/*",
+          "condition_keys": []
+        },
+        "cloudformation:ExecuteChangeSet": {
+          "resource": "arn:aws:cloudformation:{region}:{account}:stack/{role_prefix}*/*",
+          "condition_keys": []
+        },
+        "cloudformation:CreateChangeSet": {
+          "resource": "arn:aws:cloudformation:{region}:{account}:stack/{role_prefix}*/*",
+          "condition_keys": []
+        },
+        "cloudformation:DeleteChangeSet": {
           "resource": "arn:aws:cloudformation:{region}:{account}:stack/{role_prefix}*/*",
           "condition_keys": []
         }

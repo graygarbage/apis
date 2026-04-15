@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 
 import click
@@ -59,7 +60,7 @@ def init(config):
         "version": "1.0",
         "aws": {
             "account_id": "",
-            "regions": ["us-east-1"],
+            "cohesity_account_id": "",
             "tag_key": "CohesityManaged",
             "tag_value": "true"
         },
@@ -172,22 +173,34 @@ def configure(config):
 @click.option("--config", default="cohesity-config.json", show_default=True,
               type=click.Path(exists=True),
               help="Path to configuration file (from 'configure' or 'init').")
-@click.option("--output", default="scoped-cft.json", show_default=True,
-              help="Output file path for the generated policy/template.")
+@click.option("--output", default=None,
+              help="Output file path. Overrides config output.output_file (default: scoped-cft.json).")
 @click.option("--format", "output_format",
               type=click.Choice(["cloudformation", "iam-policy"], case_sensitive=False),
               default="cloudformation", show_default=True,
               help="Output format: CloudFormation template or raw IAM policy JSON.")
-def generate(config, output, output_format):
+@click.option("--account-id", default=None,
+              help="AWS account ID (exactly 12 digits). Overrides aws.account_id in config.")
+@click.option("--features", default=None,
+              help="Comma-separated feature keys to enable. Overrides selected_features in config.")
+@click.option("--permission-map", "permission_map", default=None,
+              type=click.Path(exists=True),
+              help="Path to a custom aws_permission_map.json (extends built-in map).")
+@click.option("--cohesity-account-id", "cohesity_account_id", default=None,
+              help="Account ID where Cohesity CE runs (trust policies). Overrides aws.cohesity_account_id in config.")
+def generate(config, output, output_format, account_id, features, permission_map, cohesity_account_id):
     """Generate a scoped IAM policy based on your configuration.
 
     Reads your configuration and produces a minimal IAM policy or CloudFormation
     template with only the permissions required for your selected workflows.
+    CLI flags override values in the config file when both are supplied.
 
     \b
     Example:
       cohesity-iam-scoper generate
       cohesity-iam-scoper generate --config my-env.json --output scoped-cft.json
+      cohesity-iam-scoper generate --account-id 123456789012
+      cohesity-iam-scoper generate --features ec2_vm_backup,rds_backup
       cohesity-iam-scoper generate --format iam-policy --output policy.json
     """
     formatter = OutputFormatter()
@@ -196,10 +209,56 @@ def generate(config, output, output_format):
     with open(config) as f:
         configuration = json.load(f)
 
+    # --- Apply CLI overrides onto the loaded config ---
+    if account_id is not None:
+        if not re.match(r'^\d{12}$', account_id):
+            formatter.print_error(
+                f"--account-id '{account_id}' is invalid: must be exactly 12 digits."
+            )
+            sys.exit(1)
+        configuration.setdefault("aws", {})["account_id"] = account_id
+
+    if cohesity_account_id is not None:
+        if not re.match(r'^\d{12}$', cohesity_account_id):
+            formatter.print_error(
+                f"--cohesity-account-id '{cohesity_account_id}' is invalid: must be exactly 12 digits."
+            )
+            sys.exit(1)
+        configuration.setdefault("aws", {})["cohesity_account_id"] = cohesity_account_id
+
+    if features is not None:
+        feature_list = [f.strip() for f in features.split(",") if f.strip()]
+        configuration["selected_features"] = feature_list
+
+    # Resolve output path: CLI flag > config file value > hardcoded default
+    resolved_output = (
+        output
+        or configuration.get("output", {}).get("output_file")
+        or "scoped-cft.json"
+    )
+
+    # Validate tag value against the IAM tag value allowed character set.
+    _tag_value = configuration.get("aws", {}).get("tag_value", "")
+    if _tag_value and not re.match(r'^[\w _.:/=+\-@]*$', _tag_value):
+        formatter.print_error(
+            f"aws.tag_value '{_tag_value}' contains characters not allowed in IAM tag values.\n"
+            "Allowed: letters, numbers, spaces, and _ . : / = + - @"
+        )
+        sys.exit(1)
+
     console.print(f"[cyan]Loaded configuration:[/cyan] {config}")
 
-    mapper = PermissionMapper()
+    mapper = PermissionMapper(data_file=permission_map) if permission_map else PermissionMapper()
     detector = FeatureDetector(mapper)
+
+    if not configuration.get("selected_features"):
+        console.print(
+            "\n[bold yellow]⚠  WARNING:[/bold yellow] [yellow]selected_features is empty — "
+            "generating permissions for ALL features.[/yellow]\n"
+            "[dim]Run [bold]cohesity-iam-scoper configure[/bold] to select only the features "
+            "you need and reduce the permission surface by up to 45%.[/dim]\n"
+        )
+
     permissions = detector.resolve_permissions(configuration)
 
     if output_format.lower() == "cloudformation":
@@ -209,10 +268,10 @@ def generate(config, output, output_format):
         generator = PolicyGenerator()
         result = generator.generate(permissions, configuration)
 
-    with open(output, "w") as f:
+    with open(resolved_output, "w") as f:
         json.dump(result, f, indent=2)
 
-    formatter.print_generated_summary(permissions, output, output_format)
+    formatter.print_generated_summary(permissions, resolved_output, output_format)
 
 
 @cli.command()
