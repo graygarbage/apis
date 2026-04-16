@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graygarbage.github.io/apis/schemas/cohesity-iam-scoper-config.schema.json",
+  "title": "Cohesity IAM Scoper Configuration",
+  "description": "Schema for cohesity-config.json. Feature-conditional section requirements are enforced by the Python validator, not by this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "aws",
+    "selected_features",
+    "iam",
+    "output"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Config schema version."
+    },
+    "aws": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["account_id"],
+      "properties": {
+        "account_id": {
+          "type": "string",
+          "description": "Customer AWS account ID. Use empty string to fall back to ${AWS::AccountId} at deploy time.",
+          "pattern": "^([0-9]{12})?$"
+        },
+        "cohesity_account_id": {
+          "type": "string",
+          "description": "Cohesity Cloud Edition account ID. Populates the trust principal in AssumeRolePolicyDocument.",
+          "pattern": "^([0-9]{12})?$"
+        },
+        "tag_key": {
+          "type": "string",
+          "description": "Tag key used in tag-based IAM conditions.",
+          "pattern": "^[A-Za-z0-9_.:/=+\\-@]+$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "tag_value": {
+          "type": "string",
+          "description": "Tag value used in StringLike conditions. Must be a literal value — wildcards broaden the match unintentionally.",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "selected_features": {
+      "type": "array",
+      "description": "Cohesity workflows to include. Drives which IAM permissions and roles are generated.",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "source_registration_aws",
+          "ec2_vm_backup",
+          "ebs_direct_api",
+          "ec2_vm_restore",
+          "rds_backup",
+          "rds_restore",
+          "rds_db_connect",
+          "rds_staging_s3",
+          "redshift_backup",
+          "dynamodb_backup",
+          "s3_protection",
+          "s3_archive",
+          "glacier_archive",
+          "iam_role_management",
+          "instance_role",
+          "ssm_operations",
+          "cloudformation_management",
+          "kms_encryption"
+        ]
+      }
+    },
+    "s3": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bucket_pattern": {
+          "description": "Bucket name pattern(s) for all Cohesity-managed S3 buckets. Accepts a glob string or a list of glob strings.",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "existing_buckets": {
+          "type": "array",
+          "description": "Explicit bucket names to allowlist in place of a pattern. When set, bucket_pattern is ignored.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 63
+          }
+        },
+        "kms_encryption": {
+          "type": "boolean",
+          "description": "Whether S3 operations require KMS encryption."
+        },
+        "kms_key_arn": {
+          "type": "string",
+          "description": "KMS key ARN to scope S3 KMS operations. Leave empty to allow any key.",
+          "pattern": "^(arn:aws(-[a-z]+)?:kms:[a-z0-9-]+:[0-9]{12}:(key\\/[A-Za-z0-9\\-]+|alias\\/[A-Za-z0-9\\/_+=,@.\\-]+))?$"
+        }
+      }
+    },
+    "ec2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vpc_ids": {
+          "type": "array",
+          "description": "VPC IDs to restrict RunInstances, CreateSecurityGroup, and subnet operations.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^vpc-[0-9a-f]+$"
+          }
+        },
+        "subnet_ids": {
+          "type": "array",
+          "description": "Subnet IDs to restrict RunInstances and ENI operations.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^subnet-[0-9a-f]+$"
+          }
+        },
+        "security_group_ids": {
+          "type": "array",
+          "description": "Security group IDs to restrict AuthorizeSecurityGroup* and CreateSecurityGroup.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^sg-[0-9a-f]+$"
+          }
+        },
+
+        "use_tagging_conditions": {
+          "type": "boolean",
+          "description": "Add tag-based conditions to EC2 manage/delete actions. Off by default to avoid breaking pre-existing deployments."
+        }
+      }
+    },
+    "rds": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_prefix": {
+          "type": "string",
+          "description": "Prefix for Cohesity-managed RDS instance snapshots. Scopes snapshot ARNs to snapshot:{prefix}*.",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "iam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role_name_prefix"],
+      "properties": {
+        "role_name_prefix": {
+          "type": "string",
+          "description": "Prefix for all Cohesity-managed IAM roles. Roles will match arn:aws:iam::*:role/{prefix}*.",
+          "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "use_permissions_boundary": {
+          "type": "boolean",
+          "description": "Attach and enforce a permissions boundary on all Cohesity-created roles."
+        },
+        "permissions_boundary_arn": {
+          "type": "string",
+          "description": "ARN of the IAM policy to use as permissions boundary. Leave empty to auto-generate from account_id and role_name_prefix.",
+          "pattern": "^(arn:aws(-[a-z]+)?:iam::[0-9]{12}:policy\\/.+)?$"
+        },
+        "external_id": {
+          "type": "string",
+          "description": "External ID added as sts:ExternalId condition on account-principal AssumeRole statements.",
+          "maxLength": 128
+        }
+      }
+    },
+    "kms": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key_arns": {
+          "type": "array",
+          "description": "KMS key ARNs to restrict all KMS operations. Leave empty to allow any key (Resource: \"*\").",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^arn:aws(-[a-z]+)?:kms:[a-z0-9-]+:[0-9]{12}:(key\\/[A-Za-z0-9\\-]+|alias\\/[A-Za-z0-9\\/_+=,@.\\-]+)$"
+          }
+        },
+        "enforce_via_service": {
+          "type": "boolean",
+          "description": "Enforce kms:ViaService condition to restrict KMS operations to EC2/RDS/S3/DynamoDB/Redshift service integrations."
+        }
+      }
+    },
+    "dynamodb": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "table_name_pattern": {
+          "type": "string",
+          "description": "DynamoDB table name pattern to restrict data-plane permissions. E.g. 'cohesity-*'. Leave empty for all tables (table/*).",
+          "minLength": 1
+        },
+        "staging_bucket_pattern": {
+          "type": "string",
+          "description": "S3 bucket pattern for DynamoDB export staging. Separate from the general s3.bucket_pattern.",
+          "minLength": 1
+        }
+      }
+    },
+    "redshift": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cluster_identifiers": {
+          "type": "array",
+          "description": "Redshift cluster identifiers to restrict GetClusterCredentials and ExecuteStatement resource ARNs.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "db_users": {
+          "type": "array",
+          "description": "Redshift database usernames Cohesity will connect as. Scopes dbuser ARNs. Collected but not fully applied.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "glue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_name_prefix": {
+          "type": "string",
+          "description": "Prefix for Cohesity-managed Glue jobs. Scopes StartJobRun/DeleteJob to arn:…:job/{prefix}*.",
+          "minLength": 1
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format"],
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["cloudformation", "iam-policy"],
+          "description": "Output format. 'cloudformation' generates a full CFT; 'iam-policy' generates a raw IAM policy document."
+        },
+        "output_file": {
+          "type": "string",
+          "description": "Output file path.",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

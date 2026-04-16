@@ -79,7 +79,7 @@ class Questionnaire:
         output_config = self._ask_output_config()
 
         config = {
-            "version": "2.0",
+            "version": "1.0",
             "aws": aws_config,
             "selected_features": selected_features,
             "s3": s3_config,
@@ -201,7 +201,6 @@ class Questionnaire:
             return {
                 "bucket_pattern": "cohesity-*",
                 "existing_buckets": [],
-                "allow_bucket_creation": False,
                 "kms_encryption": False,
                 "kms_key_arn": "",
             }
@@ -223,10 +222,6 @@ class Questionnaire:
             default="cohesity-*",
         )
 
-        allow_create = Confirm.ask(
-            "Allow Cohesity to create new S3 buckets?", default=True
-        )
-
         kms = Confirm.ask(
             "Require KMS encryption for S3 objects?", default=False
         )
@@ -239,7 +234,6 @@ class Questionnaire:
         return {
             "bucket_pattern": bucket_pattern,
             "existing_buckets": existing_buckets,
-            "allow_bucket_creation": allow_create,
             "kms_encryption": kms,
             "kms_key_arn": kms_key_arn,
         }
@@ -251,7 +245,6 @@ class Questionnaire:
             return {
                 "vpc_ids": [],
                 "subnet_ids": [],
-                "instance_types": [],
                 "use_tagging_conditions": True,
             }
 
@@ -283,27 +276,18 @@ class Questionnaire:
         )
         security_group_ids = [s.strip() for s in sgs_raw.split(",") if s.strip()]
 
-        ami_owners_raw = Prompt.ask(
-            "Restrict AMI lookups to specific owner account IDs? "
-            "[dim](comma-separated, leave blank to allow any)[/dim]",
-            default="",
-        )
-        ami_owner_account_ids = [a.strip() for a in ami_owners_raw.split(",") if a.strip()]
-
         return {
             "vpc_ids": vpc_ids,
             "subnet_ids": subnet_ids,
-            "instance_types": [],
             "use_tagging_conditions": use_tagging,
             "security_group_ids": security_group_ids,
-            "ami_owner_account_ids": ami_owner_account_ids,
         }
 
     def _ask_rds_config(self, features: list[str]) -> dict[str, Any]:
         """Ask for RDS-specific configuration if RDS features are selected."""
         rds_features = {"rds_backup", "rds_restore", "rds_staging_s3"}
         if not rds_features.intersection(features):
-            return {"snapshot_prefix": "cohesity-", "allowed_engines": []}
+            return {"snapshot_prefix": "cohesity-"}
 
         console.print("\n[bold]Step 5: RDS Configuration[/bold]\n")
 
@@ -314,7 +298,6 @@ class Questionnaire:
 
         return {
             "snapshot_prefix": prefix,
-            "allowed_engines": [],
         }
 
     def _ask_iam_config(self, features: list[str]) -> dict[str, Any]:
@@ -338,10 +321,17 @@ class Questionnaire:
                 default="",
             ).strip()
 
+        external_id = Prompt.ask(
+            "External ID for cross-account trust "
+            "[dim](strongly recommended — leave blank to skip)[/dim]",
+            default="",
+        ).strip()
+
         return {
             "role_name_prefix": role_prefix,
             "use_permissions_boundary": use_boundary,
             "permissions_boundary_arn": boundary_arn,
+            "external_id": external_id,
         }
     def _ask_kms_config(self, features: list[str]) -> dict[str, Any]:
         """Ask for KMS-specific configuration if kms_encryption is selected."""

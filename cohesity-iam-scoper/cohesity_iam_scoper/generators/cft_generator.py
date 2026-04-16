@@ -437,28 +437,7 @@ class CFTGenerator:
                 "Default": cohesity_account_id,
                 "Description": "AWS account ID where Cohesity Cloud Edition is running (used in role trust policies)",
             },
-            "CohesityTagKey": {
-                "Type": "String",
-                "Default": tag_key,
-                "Description": "Tag key applied to all Cohesity-managed resources",
-            },
-            "CohesityTagValue": {
-                "Type": "String",
-                "Default": tag_value,
-                "Description": "Tag value applied to all Cohesity-managed resources",
-            },
         }
-
-        s3_config = config.get("s3", {})
-        _bp_raw = s3_config.get("bucket_pattern", "cohesity-*")
-        # Normalise to a display string for the CFT parameter description.
-        bucket_pattern = ", ".join(_bp_raw) if isinstance(_bp_raw, list) else _bp_raw
-        if bucket_pattern:
-            parameters["ArchiveBucketPattern"] = {
-                "Type": "String",
-                "Default": bucket_pattern,
-                "Description": "S3 bucket name pattern(s) for Cohesity archive buckets",
-            }
 
         if boundary_arn and use_permissions_boundary:
             parameters["PermissionsBoundaryArn"] = {

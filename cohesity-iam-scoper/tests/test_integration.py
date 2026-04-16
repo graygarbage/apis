@@ -39,17 +39,15 @@ def _make_config(**overrides) -> dict:
         "s3": {
             "bucket_pattern": "cohesity-*",
             "existing_buckets": [],
-            "allow_bucket_creation": True,
             "kms_encryption": False,
             "kms_key_arn": "",
         },
         "ec2": {
             "vpc_ids": [],
             "subnet_ids": [],
-            "instance_types": [],
             "use_tagging_conditions": False,
         },
-        "rds": {"snapshot_prefix": "cohesity-", "allowed_engines": []},
+        "rds": {"snapshot_prefix": "cohesity-"},
         "iam": {
             "role_name_prefix": "Cohesity",
             "use_permissions_boundary": False,
@@ -138,15 +136,130 @@ class TestConfigValidator:
         _, warnings = validate_config(cfg)
         assert any("totally_fake_feature" in w for w in warnings)
 
-    def test_unimplemented_field_warning(self):
-        cfg = _make_config(ec2={"instance_types": ["m5.large"], "vpc_ids": [], "subnet_ids": []})
-        _, warnings = validate_config(cfg)
-        assert any("instance_types" in w for w in warnings)
-
     def test_empty_selected_features_no_error(self):
         cfg = _make_config(selected_features=[])
         errors, _ = validate_config(cfg)
         assert errors == []
+
+    def test_empty_selected_features_produces_warning(self):
+        cfg = _make_config(selected_features=[])
+        _, warnings = validate_config(cfg)
+        assert any("empty" in w.lower() or "all features" in w.lower() for w in warnings)
+
+    def test_selected_features_absent_is_error(self):
+        cfg = _make_config()
+        del cfg["selected_features"]
+        errors, _ = validate_config(cfg)
+        assert any("selected_features" in e for e in errors)
+
+    def test_tag_value_wildcard_produces_warning(self):
+        cfg = _make_config(aws={"tag_key": "UniqueTag", "tag_value": "cohesity_*"})
+        _, warnings = validate_config(cfg)
+        assert any("tag_value" in w and "wildcard" in w.lower() for w in warnings)
+
+    def test_tag_value_literal_no_warning(self):
+        cfg = _make_config(aws={"tag_key": "UniqueTag", "tag_value": "cohesity"})
+        _, warnings = validate_config(cfg)
+        assert not any("tag_value" in w and "wildcard" in w.lower() for w in warnings)
+
+# ---------------------------------------------------------------------------
+# Feature-conditional scoping warning tests
+# ---------------------------------------------------------------------------
+
+class TestFeatureConditionalWarnings:
+    def test_ec2_features_without_vpc_ids_warns(self):
+        cfg = _make_config(
+            selected_features=["ec2_vm_backup"],
+            ec2={"vpc_ids": [], "subnet_ids": []},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("vpc_ids" in w for w in warnings)
+
+    def test_ec2_features_without_subnet_ids_warns(self):
+        cfg = _make_config(
+            selected_features=["ec2_vm_restore"],
+            ec2={"vpc_ids": [], "subnet_ids": []},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("subnet_ids" in w for w in warnings)
+
+    def test_ec2_features_with_ids_no_scoping_warning(self):
+        cfg = _make_config(
+            selected_features=["ec2_vm_backup"],
+            ec2={"vpc_ids": ["vpc-abc123"], "subnet_ids": ["subnet-def456"]},
+        )
+        _, warnings = validate_config(cfg)
+        assert not any("vpc_ids" in w for w in warnings)
+        assert not any("subnet_ids" in w for w in warnings)
+
+    def test_rds_features_without_snapshot_prefix_warns(self):
+        cfg = _make_config(
+            selected_features=["rds_backup"],
+            rds={"snapshot_prefix": ""},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("snapshot_prefix" in w for w in warnings)
+
+    def test_no_rds_features_no_rds_warning(self):
+        cfg = _make_config(
+            selected_features=["ec2_vm_backup"],
+            rds={"snapshot_prefix": ""},
+        )
+        _, warnings = validate_config(cfg)
+        assert not any("snapshot_prefix" in w for w in warnings)
+
+    def test_redshift_features_without_cluster_ids_warns(self):
+        cfg = _make_config(
+            selected_features=["redshift_backup"],
+            redshift={"cluster_identifiers": [], "db_users": []},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("cluster_identifiers" in w for w in warnings)
+
+    def test_dynamodb_features_without_table_pattern_warns(self):
+        cfg = _make_config(
+            selected_features=["dynamodb_backup"],
+            dynamodb={"table_name_pattern": "", "staging_bucket_pattern": "cohesity-ddb*"},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("table_name_pattern" in w for w in warnings)
+
+    def test_dynamodb_features_without_staging_bucket_warns(self):
+        cfg = _make_config(
+            selected_features=["dynamodb_backup"],
+            dynamodb={"table_name_pattern": "cohesity-*", "staging_bucket_pattern": ""},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("staging_bucket_pattern" in w for w in warnings)
+
+    def test_kms_features_without_key_arns_warns(self):
+        cfg = _make_config(
+            selected_features=["kms_encryption"],
+            kms={"key_arns": [], "enforce_via_service": True},
+        )
+        _, warnings = validate_config(cfg)
+        assert any("key_arns" in w for w in warnings)
+
+    def test_kms_features_with_key_arns_no_warning(self):
+        cfg = _make_config(
+            selected_features=["kms_encryption"],
+            kms={
+                "key_arns": ["arn:aws:kms:us-east-1:123456789012:key/abcd-1234"],
+                "enforce_via_service": True,
+            },
+        )
+        _, warnings = validate_config(cfg)
+        assert not any("key_arns" in w for w in warnings)
+
+    def test_default_s3_pattern_produces_informational_warning(self):
+        cfg = _make_config(s3={"bucket_pattern": "cohesity-*", "existing_buckets": []})
+        _, warnings = validate_config(cfg)
+        assert any("cohesity-*" in w for w in warnings)
+
+    def test_custom_s3_pattern_no_informational_warning(self):
+        cfg = _make_config(s3={"bucket_pattern": "acme-cohesity-*", "existing_buckets": []})
+        _, warnings = validate_config(cfg)
+        assert not any("cohesity-*" in w and "consider tightening" in w.lower() for w in warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -392,7 +505,7 @@ class TestVpcSubnetScoping:
         """When vpc_ids is set, CreateSecurityGroup resource should list specific VPC ARNs."""
         cfg = _make_config(
             selected_features=_EC2_VPC_FEATURES,
-            ec2={"vpc_ids": ["vpc-aaa111", "vpc-bbb222"], "subnet_ids": [], "instance_types": []},
+            ec2={"vpc_ids": ["vpc-aaa111", "vpc-bbb222"], "subnet_ids": []},
         )
         cft = _generate_cft(cfg)
         stmts = _all_statements(cft)
@@ -414,7 +527,7 @@ class TestVpcSubnetScoping:
         """When subnet_ids is set, RunInstances resource should list specific subnet ARNs."""
         cfg = _make_config(
             selected_features=["ec2_vm_backup"],
-            ec2={"vpc_ids": [], "subnet_ids": ["subnet-11111111", "subnet-22222222"], "instance_types": []},
+            ec2={"vpc_ids": [], "subnet_ids": ["subnet-11111111", "subnet-22222222"]},
         )
         cft = _generate_cft(cfg)
         stmts = _all_statements(cft)
@@ -436,7 +549,7 @@ class TestVpcSubnetScoping:
         """When vpc_ids is empty, CreateSecurityGroup resource retains the vpc/* wildcard."""
         cfg = _make_config(
             selected_features=_EC2_VPC_FEATURES,
-            ec2={"vpc_ids": [], "subnet_ids": [], "instance_types": []},
+            ec2={"vpc_ids": [], "subnet_ids": []},
         )
         cft = _generate_cft(cfg)
         stmts = _all_statements(cft)

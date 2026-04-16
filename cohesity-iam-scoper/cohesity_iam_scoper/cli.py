@@ -68,24 +68,38 @@ def init(config):
         "s3": {
             "bucket_pattern": "cohesity-*",
             "existing_buckets": [],
-            "allow_bucket_creation": True,
             "kms_encryption": False,
             "kms_key_arn": ""
         },
         "ec2": {
             "vpc_ids": [],
             "subnet_ids": [],
-            "instance_types": [],
+            "security_group_ids": [],
             "use_tagging_conditions": True
         },
         "rds": {
-            "snapshot_prefix": "cohesity-",
-            "allowed_engines": []
+            "snapshot_prefix": "cohesity-"
         },
         "iam": {
             "role_name_prefix": "Cohesity",
             "use_permissions_boundary": False,
-            "permissions_boundary_arn": ""
+            "permissions_boundary_arn": "",
+            "external_id": ""
+        },
+        "kms": {
+            "key_arns": [],
+            "enforce_via_service": True
+        },
+        "dynamodb": {
+            "table_name_pattern": "",
+            "staging_bucket_pattern": "cohesity-ddb*"
+        },
+        "redshift": {
+            "cluster_identifiers": [],
+            "db_users": []
+        },
+        "glue": {
+            "job_name_prefix": "cohesity-"
         },
         "output": {
             "format": "cloudformation",
